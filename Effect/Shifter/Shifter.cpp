@@ -98,9 +98,9 @@ ParamsSetup (PF_InData    *in_data,
   def.flags = PF_ParamFlag_SUPERVISE;
 
   PF_ADD_BUTTON("Sort", "Sort", PF_ParamFlag_SUPERVISE, NULL, SORT_BUTTON);
-  PF_ADD_SLIDER("Sort Range Booster", 5, 200, 5, 200, 5, SORT_LENGTH_BOOSTER_SLIDER);
+  PF_ADD_SLIDER("Sort Range Booster", 5, 350, 5, 350, 75, SORT_LENGTH_BOOSTER_SLIDER);
   PF_ADD_SLIDER("Minimum Sort Length", 5, 200, 5, 200, 5, MIN_SORT_LENGTH_SLIDER);
-  PF_ADD_SLIDER("Sort Width", 1, 50, 1, 50, 10, SORT_WIDTH_SLIDER);
+  PF_ADD_SLIDER("Sort Width", 1, 50, 1, 100, 20, SORT_WIDTH_SLIDER);
   
   out_data->num_params = SHIFT_NUM_PARAMS; 
 
@@ -120,31 +120,23 @@ ShiftImage8 (void     *refcon,
              PF_Pixel *outP)  
 {
   
-  register ShiftInfo *siP       = reinterpret_cast<ShiftInfo*>(refcon);
-  ShiftInfo          *shiftTest = reinterpret_cast<ShiftInfo*>(refcon);
-  PF_Err             err        = PF_Err_NONE;
-  PF_Fixed           new_xFi    = 0; 
-  PF_Fixed           new_yFi    = 0;
+  register ShiftInfo *siP = reinterpret_cast<ShiftInfo*>(refcon);  
+  PF_Err             err  = PF_Err_NONE;
             
 
   if (siP->mapCreated) 
   {           
-    //*inP  = siP->pixelMap[xL][yL];
-    *outP = siP->pixelMap[xL][yL];
+    *inP = siP->pixelMap[xL][yL];
+    outP->alpha = siP->pixelMap[xL][yL].alpha;
+    outP->blue  = siP->pixelMap[xL][yL].blue;
+    outP->green = siP->pixelMap[xL][yL].green;
+    outP->red   = siP->pixelMap[xL][yL].red;
   } 
   else 
   {
     siP->pixelMap[xL][yL] = *inP;
   }
-    
-  
-  ERR(siP->in_data.utils->subpixel_sample(
-    siP->in_data.effect_ref,
-    xL, 
-    yL, 
-    &siP->samp_pb, 
-    outP));
-  
+   
   return err;
 }
 
@@ -253,7 +245,7 @@ sortPixelMap(ShiftInfo* shiftInfo,
       }
       else
       {                               
-        if (std::abs(mostQueue.top()-getColumnPixelAverage(i, j, shiftInfo)) > 150
+        if (std::abs(mostQueue.top()-getColumnPixelAverage(i, j, shiftInfo)) > sortSteps
            /*sortSteps2*/ || j == shiftInfo->in_data.height - 1) 
         {       
           storeRowIters(i, j, rowEndIters, shiftInfo);          
@@ -369,14 +361,29 @@ SmartRender(PF_InData           *in_data,
   PF_Point           origin;
 
   
-  ShiftInfo  *infoP = reinterpret_cast<ShiftInfo*>(
-    suites.HandleSuite1()->host_lock_handle(reinterpret_cast<PF_Handle>(
-      extra->input->pre_render_data)));
+  ShiftInfo *infoP{reinterpret_cast<ShiftInfo*>(
+    suites.HandleSuite1()->host_lock_handle(
+      reinterpret_cast<PF_Handle>(
+        extra->input->pre_render_data)))};
   
-  AEFX_SuiteScoper<PF_Iterate8Suite1> iterSuite(in_data,
-                                                kPFIterate8Suite,
-                                                kPFIterate8SuiteVersion1,
-                                                out_data);
+  
+  AEFX_SuiteScoper<PF_Iterate8Suite1> iterSuite {
+    in_data,
+    kPFIterate8Suite,
+    kPFIterate8SuiteVersion1,
+    out_data
+  };
+  
+  AEFX_SuiteScoper<PF_WorldSuite2> worldSuite {
+    AEFX_SuiteScoper<PF_WorldSuite2>{
+      in_data, 
+      kPFWorldSuite, 
+      kPFWorldSuiteVersion2, 
+      out_data}
+  };
+
+
+
 
   if (infoP) 
   {    
@@ -394,81 +401,50 @@ SmartRender(PF_InData           *in_data,
 
 
       if (!err && output_worldP) 
-      {
-        ERR(AEFX_AcquireSuite(
-          in_data, out_data, 
-          kPFWorldSuite, 
-          kPFWorldSuiteVersion2, 
-          "Couldn't load suite.",
-          (void**)&wsP));
-
+      {        
         infoP->ref         = in_data->effect_ref;
         infoP->in_data     = *in_data;
         infoP->inputCopy   = *input_worldP;
-        infoP->samp_pb.src = &infoP->inputCopy;
+        infoP->samp_pb.src = input_worldP;
         
         
-        ERR(wsP->PF_GetPixelFormat(input_worldP, &format));
+        ERR(worldSuite->PF_GetPixelFormat(input_worldP, &format));
 
         origin.h = (A_short)(in_data->output_origin_x);        
         origin.v = (A_short)(in_data->output_origin_y);        
-
-        
-        
-        if (!err) 
-        {          
-          switch (format) 
-          {          
-            case PF_PixelFormat_ARGB32:{
-               
-              iterSuite->iterate_origin(
-                in_data, 
-                0, 
-                output_worldP->height,
-                input_worldP, 
-                &output_worldP->extent_hint,
-                &origin,
-                (void*)(infoP),
-                ShiftImage8,
-                output_worldP);
+ 
+        iterSuite->iterate_origin(
+          in_data, 
+          0, 
+          output_worldP->height,
+          input_worldP, 
+          NULL,
+          &origin,
+          (void*)(infoP),
+          ShiftImage8,
+          output_worldP);
 
               
-              infoP->mapCreated = true;
-              sortPixelMap(infoP, in_data);
+        infoP->mapCreated = true;
+        sortPixelMap(infoP, in_data);
               
 
-              iterSuite->iterate_origin(
-                in_data, 
-                0, 
-                output_worldP->height,
-                input_worldP, 
-                &output_worldP->extent_hint,
-                &origin,
-                (void*)(infoP),
-                ShiftImage8,
-                output_worldP);
+        iterSuite->iterate_origin(
+          in_data, 
+          0, 
+          output_worldP->height,
+          input_worldP, 
+          NULL,
+          &origin,
+          (void*)(infoP),
+          ShiftImage8,
+          output_worldP);
 
 
-              infoP->mapCreated = false;
-              
-              break;
-            }
-            default:
-              err = PF_Err_BAD_CALLBACK_PARAM;
-              break;
-          }
-        }
-        //  Note: same blend, no matter bit depth.
-        
-        /*AEGP_LayerH currentLayer;
-        
-        ERR(suites.LayerSuite1()->AEGP_GetActiveLayer(&currentLayer));
-        
-        AEGP_ItemH currentItem;
-        
-        ERR(suites.LayerSuite1()->AEGP_GetLayerSourceItem(currentLayer, &currentItem));
-
-        ERR(suites.WorldTransformSuite1()->copy_hq(
+        infoP->mapCreated = false;
+ 
+      }
+       /*ERR(suites.WorldTransformSuite1()->copy_hq(
             in_data->effect_ref,
             input_worldP,
             output_worldP,
@@ -476,23 +452,22 @@ SmartRender(PF_InData           *in_data,
             NULL));
         */
         extra->cb->checkin_layer_pixels(in_data->effect_ref, INPUT_ID);        
-      }
     } 
     else 
     {
       // copy input buffer;
       ERR(PF_COPY(&infoP->inputCopy, output_worldP, NULL, NULL));
     }
-
+    
     suites.HandleSuite1()->host_unlock_handle(
       reinterpret_cast<PF_Handle>(
         extra->input->pre_render_data));
-
-  } 
+  }
   else 
   {
     err = PF_Err_BAD_CALLBACK_PARAM;
   }
+
   ERR2(AEFX_ReleaseSuite(
     in_data,
     out_data,
