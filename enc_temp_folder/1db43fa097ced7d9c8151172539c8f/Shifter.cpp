@@ -147,6 +147,66 @@ ShiftImage8 (void     *refcon,
   
   return err;
 }
+ 
+
+
+
+
+static PF_Err 
+ShiftImage16 (void       *refcon, 
+              A_long     xL, 
+              A_long     yL, 
+              PF_Pixel16 *inP, 
+              PF_Pixel16 *outP)
+{
+
+  register ShiftInfo  *siP      = (ShiftInfo*)refcon;
+  PF_InData           *in_data  = &(siP->in_data);
+  PF_Err              err       = PF_Err_NONE;
+  PF_Fixed            new_xFi   = 0;
+  PF_Fixed            new_yFi   = 0;          
+  AEGP_SuiteHandler   suites(in_data->pica_basicP);
+
+
+  ERR(suites.Sampling16Suite1()->subpixel_sample16(  
+    in_data->effect_ref,
+    new_xFi, 
+    new_yFi, 
+    &siP->samp_pb, 
+    outP));
+
+  return err;
+}
+
+
+
+
+
+static PF_Err 
+ShiftImageFloat (void           *refcon, 
+                 A_long         xL, 
+                 A_long         yL, 
+                 PF_PixelFloat  *inP, 
+                 PF_PixelFloat  *outP)
+{
+
+  register ShiftInfo *siP    = (ShiftInfo*)refcon;
+  PF_Err             err     = PF_Err_NONE;
+  PF_Fixed           new_xFi = 0; 
+  PF_Fixed           new_yFi = 0;            
+  AEGP_SuiteHandler  suites(siP->in_data.pica_basicP);
+
+
+
+  ERR(suites.SamplingFloatSuite1()->subpixel_sample_float(
+    siP->in_data.effect_ref,
+    new_xFi, 
+    new_yFi, 
+    &siP->samp_pb, 
+    outP));
+  
+  return err;
+}
 
 
 
@@ -392,7 +452,6 @@ SmartRender(PF_InData           *in_data,
         in_data->effect_ref, 
         &output_worldP));
 
-
       if (!err && output_worldP) 
       {
         ERR(AEFX_AcquireSuite(
@@ -419,6 +478,36 @@ SmartRender(PF_InData           *in_data,
         {          
           switch (format) 
           {          
+            case PF_PixelFormat_ARGB128:
+            
+              ERR(suites.IterateFloatSuite1()->iterate_origin(
+                in_data,
+                0,
+                output_worldP->height,
+                input_worldP,
+                &output_worldP->extent_hint,
+                &origin,
+                (void*)(infoP),
+                ShiftImageFloat,
+                output_worldP));
+              
+              break;
+              
+            case PF_PixelFormat_ARGB64:
+          
+              ERR(suites.Iterate16Suite1()->iterate_origin(
+                in_data,
+                0,
+                output_worldP->height,
+                input_worldP,
+                &output_worldP->extent_hint,
+                &origin,
+                (void*)(infoP),
+                ShiftImage16,
+                output_worldP));
+              
+              break;
+              
             case PF_PixelFormat_ARGB32:{
                
               iterSuite->iterate_origin(
