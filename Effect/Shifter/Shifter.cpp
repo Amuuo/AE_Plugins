@@ -98,9 +98,9 @@ ParamsSetup (PF_InData    *in_data,
   def.flags = PF_ParamFlag_SUPERVISE;
 
   PF_ADD_BUTTON("Sort", "Sort", PF_ParamFlag_SUPERVISE, NULL, SORT_BUTTON);
-  PF_ADD_SLIDER("Sort Range Booster", 5, 350, 5, 350, 75, SORT_LENGTH_BOOSTER_SLIDER);
+  PF_ADD_SLIDER("Sort Range Booster", 5, 350, 5, 350, 200, SORT_LENGTH_BOOSTER_SLIDER);
   PF_ADD_SLIDER("Minimum Sort Length", 5, 200, 5, 200, 5, MIN_SORT_LENGTH_SLIDER);
-  PF_ADD_SLIDER("Sort Width", 1, 50, 1, 100, 20, SORT_WIDTH_SLIDER);
+  PF_ADD_SLIDER("Sort Width", 1, 50, 1, 100, 35, SORT_WIDTH_SLIDER);
   
   out_data->num_params = SHIFT_NUM_PARAMS; 
 
