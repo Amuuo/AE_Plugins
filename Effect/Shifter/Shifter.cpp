@@ -496,38 +496,9 @@ SmartRender(PF_InData           *in_data,
       out_data}
   };
 
-  AEGP_LayerH currentLayer;
-  AEGP_ItemH currentItem;
-  AEGP_ItemType itemType;
-  A_long itemWidth;
-  A_long itemHeight;
-  A_long numOfEffects;
-  AEGP_MaskRefH maskRef;
-  AEGP_EffectRefH effectRef;
-  AEGP_StreamRefH streamRef;  
-  AEGP_MaskOutlineValH maskOutline;
-  AEGP_MaskVertex maskVertex;
-  AEGP_StreamValue2 streamValue;
-  AEGP_StreamType streamType;
-  A_long numOfMasks;
-  A_Time currentATime;
-
-  suites.LayerSuite8()->AEGP_GetActiveLayer(&currentLayer);
-  suites.ItemSuite9()->AEGP_GetActiveItem(&currentItem);
-  suites.StreamSuite4()->AEGP_GetNewLayerStream(pluginID, currentLayer, AEGP_LayerStream_POSITION, &streamRef);
-  suites.ItemSuite9()->AEGP_GetItemType(currentItem, &itemType);
-  suites.ItemSuite9()->AEGP_GetItemDimensions(currentItem, &itemWidth, &itemHeight);
-  suites.EffectSuite4()->AEGP_GetLayerNumEffects(currentLayer, &numOfEffects);
-  suites.EffectSuite4()->AEGP_GetLayerEffectByIndex(pluginID, currentLayer, 0, &effectRef);
-  suites.WorldSuite3()->AEGP_New(pluginID, )
-  suites.MaskSuite6()->AEGP_GetLayerMaskByIndex(currentLayer, 0, &maskRef);
-  suites.StreamSuite4()->AEGP_GetStreamType(streamRef, &streamType);
-  suites.StreamSuite4()->AEGP_GetNewStreamValue(pluginID, streamRef, AEGP_LTimeMode_LayerTime, &currentATime, true, &streamValue);
-  suites.MaskSuite6()->AEGP_GetLayerNumMasks(currentLayer, &numOfMasks);
   
-  maskOutline = reinterpret_cast<AEGP_MaskOutlineValH>(streamValue.val.mask);
   
-  suites.MaskOutlineSuite3()->AEGP_GetMaskOutlineVertexInfo(maskOutline, 1, &maskVertex);
+  
 
   //suites.StreamSuite4()->AEGP_GetNewStreamValue(pluginID, streamRef, AEGP_LTimeMode_LayerTime, &currentATime, true, &streamValue);      
   //suites.MaskOutlineSuite3()->AEGP_GetMaskOutlineVertexInfo(streamValue.val.mask, 0, &maskVertex);
@@ -667,7 +638,52 @@ PreRender(PF_InData         *in_data,
   shiftSortButton.param_type = PF_Param_BUTTON;
   shiftSortButton.flags = PF_ParamFlag_SUPERVISE;
   
+  /*
+  AEGP_LayerH currentLayer;
+  AEGP_ItemH currentItem;
+  AEGP_ItemType itemType;
+  A_long itemWidth;
+  A_long itemHeight;
+  A_long numOfEffects;
+  AEGP_MaskRefH maskRef;
+  AEGP_MaskRefH maskRefNew;
+  AEGP_EffectRefH effectRef;
+  AEGP_StreamRefH streamRef;
+  PF_EffectWorld testEffectWorld;
+  A_long numOfParams;
+  AEGP_WorldH newWorld;
+  AEGP_MaskOutlineValH maskOutline;
+  AEGP_MaskVertex maskVertex;
+  AEGP_StreamValue2 streamValue;
+  AEGP_StreamType streamType;
+  A_FloatRect layerMaskRect;
+  A_long numOfMasks;
+  A_Time currentATime;
+  AEGP_MaskIDVal maskID;
+  A_long newMaskIndex;
 
+
+  suites.LayerSuite8()->AEGP_GetActiveLayer(&currentLayer);
+  suites.LayerSuite8()->AEGP_GetLayerMaskedBounds(currentLayer, AEGP_LTimeMode_CompTime, &currentATime, &layerMaskRect);
+  suites.ItemSuite9()->AEGP_GetActiveItem(&currentItem);
+  suites.StreamSuite4()->AEGP_GetNewLayerStream(pluginID, currentLayer, AEGP_LayerStream_POSITION, &streamRef);
+ // suites.MaskSuite6()->AEGP_GetLayerMaskByIndex(currentLayer, 1, &maskRef);
+  //suites.MaskSuite6()->AEGP_GetMaskID(maskRef, &maskID);
+  suites.MaskSuite6()->AEGP_CreateNewMask(currentLayer, &maskRefNew, &newMaskIndex);
+  suites.ItemSuite9()->AEGP_GetItemType(currentItem, &itemType);
+  suites.ItemSuite9()->AEGP_GetItemDimensions(currentItem, &itemWidth, &itemHeight);
+  suites.EffectSuite4()->AEGP_GetLayerNumEffects(currentLayer, &numOfEffects);
+  suites.EffectSuite4()->AEGP_GetLayerEffectByIndex(pluginID, currentLayer, 0, &effectRef);
+  suites.StreamSuite4()->AEGP_GetEffectNumParamStreams(effectRef, &numOfParams);
+  
+  suites.WorldSuite3()->AEGP_New(pluginID, AEGP_WorldType_8, 300, 300, &newWorld); 
+  suites.WorldSuite3()->AEGP_FillOutPFEffectWorld(newWorld, &testEffectWorld);
+  
+  suites.MaskSuite6()->AEGP_GetLayerMaskByIndex(currentLayer, 0, &maskRef);
+  suites.StreamSuite4()->AEGP_GetStreamType(streamRef, &streamType);
+  suites.StreamSuite4()->AEGP_GetNewStreamValue(pluginID, streamRef, AEGP_LTimeMode_LayerTime, &currentATime, true, &streamValue);
+  suites.MaskSuite6()->AEGP_GetLayerNumMasks(currentLayer, &numOfMasks);
+  */
 
   if (infoH)
   {    
