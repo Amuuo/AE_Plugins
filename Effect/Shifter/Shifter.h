@@ -60,6 +60,7 @@ enum {
   SORT_BUTTON,
   SORT_LENGTH_BOOSTER_SLIDER,
   MIN_SORT_LENGTH_SLIDER,
+  MIN_SORT_RAND_SLIDER,
   SORT_WIDTH_SLIDER,
   VARIABLE_SORT_CHECKBOX,
   VARIABLE_SLIDER,
@@ -85,9 +86,17 @@ enum {
 
 
 typedef struct {
+  PF_ParamDef    sortSliderParam; 
+  PF_ParamDef    minSortSlider; 
+  PF_ParamDef    minSortRandomSlider;
+  PF_ParamDef    shiftSortButton;
+  PF_ParamDef    sortWidthSlider;
+  PF_ParamDef    variableSortCheckbox;
+  PF_ParamDef    variableSlider;
   PF_Fixed       sortRangeBoosterSliderValue;
   PF_Fixed       minSortLengthSliderValue;
   PF_Fixed       sortWidthSliderValue;
+  PF_Fixed       minSortRandValue;
   float          variableValue;
   PF_ParamDef    sortButton;
   bool           variableSortOn;

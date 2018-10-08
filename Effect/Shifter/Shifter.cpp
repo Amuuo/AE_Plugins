@@ -101,10 +101,11 @@ ParamsSetup (PF_InData    *in_data,
 
   
   PF_ADD_BUTTON("Sort", "Sort", PF_ParamFlag_SUPERVISE, NULL, SORT_BUTTON);
-  PF_ADD_SLIDER("Sort Range Booster", 5, 350, 5, 350, 200, SORT_LENGTH_BOOSTER_SLIDER);
-  PF_ADD_SLIDER("Minimum Sort Length", 5, 200, 5, 200, 50, MIN_SORT_LENGTH_SLIDER);
-  PF_ADD_SLIDER("Sort Width", 1, 50, 1, 100, 35, SORT_WIDTH_SLIDER);
-  PF_ADD_CHECKBOX("Variable Sort Length", "Variable Sort Length", 1, NULL, VARIABLE_SORT_CHECKBOX);
+  PF_ADD_SLIDER("Sort Range Booster", 1, 350, 1, 350, 100, SORT_LENGTH_BOOSTER_SLIDER);
+  PF_ADD_SLIDER("Minimum Sort Length", 1, 200, 1, 200, 10, MIN_SORT_LENGTH_SLIDER);
+  PF_ADD_SLIDER("Minimum Sort Random", 1, 200, 1, 200, 5, MIN_SORT_RAND_SLIDER);
+  PF_ADD_SLIDER("Sort Width", 1, 200, 1, 200, 15, SORT_WIDTH_SLIDER);
+  PF_ADD_CHECKBOX("Variable Sort Length", "Variable Sort Length", 0, NULL, VARIABLE_SORT_CHECKBOX);
   PF_ADD_SLIDER("Variable Range", 0, 100, 0, 100, 50, VARIABLE_SLIDER);
   
  
@@ -142,7 +143,7 @@ ShiftImage8 (void     *refcon,
   {
     siP->pixelMap[xL][yL] = *inP;
   }
-   
+
   return err;
 }
 
@@ -150,7 +151,8 @@ ShiftImage8 (void     *refcon,
 
 
 
-inline int getSortLength(int rgbValue, ShiftInfo* shiftInfo)
+inline int getSortLength(int rgbValue, 
+                         ShiftInfo* shiftInfo)
 {
   //float divider = static_cast<float>(shiftInfo->sortRangeBoosterSliderValue);
   float variability = pow(shiftInfo->variableValue/100, -1) * 700000;
@@ -197,10 +199,42 @@ inline void storeRowIters(int columnNumber,
 
 
 
-inline int getColumnPixelAverage(int columnNumber, int rowNumber, ShiftInfo* shiftInfo)
+inline float 
+addToAverage(float avg, int pixValue)
+{
+  return avg == 0 ? pixValue : ((avg+pixValue)/2);
+}
+
+
+
+
+inline int getColumnPixelAverage(int columnNumber, 
+                                 int rowNumber, 
+                                 ShiftInfo* shiftInfo, 
+                                 PF_InData* in_data,
+                                 float& pixAvg)
 {
   int rgbAverage{0};
+  
+  /*
+  PF_Pixel* tmpPixel;
+  PF_Fixed x = columnNumber;
+  PF_Fixed y = rowNumber;
 
+  shiftInfo->samp_pb.x_radius = shiftInfo->sortWidthSliderValue/2;
+  shiftInfo->samp_pb.y_radius = 0;
+  shiftInfo->samp_pb.area = (shiftInfo->samp_pb.x_radius*2) + 1;
+
+
+  in_data->utils->area_sample(
+    in_data->effect_ref, 
+    x + shiftInfo->samp_pb.x_radius, 
+    y + shiftInfo->samp_pb.y_radius, 
+    &shiftInfo->samp_pb, 
+    tmpPixel);
+
+  return getPixelValue(*tmpPixel);
+  */
   for(int k = columnNumber; 
       k < (columnNumber+shiftInfo->sortWidthSliderValue) && 
       k < shiftInfo->in_data.width-1; ++k)
@@ -208,7 +242,9 @@ inline int getColumnPixelAverage(int columnNumber, int rowNumber, ShiftInfo* shi
     rgbAverage += getPixelValue(shiftInfo->pixelMap[k][rowNumber]);
   }
   rgbAverage /= shiftInfo->sortWidthSliderValue;
+  pixAvg = addToAverage(pixAvg, rgbAverage);
   return rgbAverage;
+  
 }
 
 
@@ -229,12 +265,14 @@ sortPixelMap(ShiftInfo* shiftInfo,
   int sortBoosterValue  = shiftInfo->sortRangeBoosterSliderValue;
   int sortWidth         = shiftInfo->sortWidthSliderValue;
   int maxPixelValueDistance{0};
-
+  float minSortLengthRand{0};
+  float pixValueAverage{0};
+  bool minSortMultiplied{false};
 
   highestPixelValueQueue mostQueue;
   iteratorVector         rowBeginIters;
   iteratorVector         rowEndIters;
-
+  random_device          random;
 
 
   // sorting routine
@@ -243,47 +281,81 @@ sortPixelMap(ShiftInfo* shiftInfo,
     rowBeginIters.clear();
     storeRowIters(i, 0, rowBeginIters, shiftInfo);
 
-    for (int j{0}; j < in_data->height; ++j) 
+    for (int j{0}, currentSortLength{0}; j < in_data->height; ++j, ++currentSortLength) 
     {                                                 
+      
       if (mostQueue.empty()) 
       {
         rowBeginIters.clear();
-        storeRowIters(i, j, rowBeginIters, shiftInfo);        
-        mostQueue.push(getColumnPixelAverage(i, j, shiftInfo));
-        sortLength = getSortLength(mostQueue.top(), shiftInfo);
+        
+        storeRowIters(i, 
+                      j, 
+                      rowBeginIters, 
+                      shiftInfo);        
+        
+        mostQueue.push(getColumnPixelAverage(i, 
+                       j, 
+                       shiftInfo, 
+                       in_data, 
+                       pixValueAverage));
+
+        sortLength = getSortLength(
+          mostQueue.top(), 
+          shiftInfo);
       }
       else
       {  
-        maxPixelValueDistance = abs(mostQueue.top()-getColumnPixelAverage(i,j,shiftInfo));
+        maxPixelValueDistance = abs(mostQueue.top()-getColumnPixelAverage(i,
+                                    j,
+                                    shiftInfo, 
+                                    in_data, 
+                                    pixValueAverage));
         
         if (!shiftInfo->variableSortOn)
         {
-          sortLength = sortBoosterValue;
+          sortLength = sortBoosterValue/5;
+        }
+        else
+        {
+          sortLength += sortBoosterValue;
+        }
+        
+        if (maxPixelValueDistance>sortLength && 
+            currentSortLength<minSortLength && !minSortMultiplied)
+        {
+          sortLength *= 2;
+          minSortMultiplied = true;
         }
 
+        minSortLengthRand = (minSortLength + (random() % shiftInfo->minSortRandValue)) * 
+            ((765-pixValueAverage)/765 + 1);
+        
         if (maxPixelValueDistance > sortLength && 
-              maxPixelValueDistance > minSortLength|| 
+              currentSortLength > minSortLengthRand|| 
                 j == shiftInfo->in_data.height - 1) 
         {       
           storeRowIters(i, j, rowEndIters, shiftInfo);          
           
           for (int h{0}; h < rowBeginIters.size(); ++h)
           {
-            std::sort(rowBeginIters[h], rowEndIters[h], sortFunc);                                                                  
+            sort(rowBeginIters[h], rowEndIters[h], sortFunc);
+            reverse(rowBeginIters[h], rowEndIters[h]);
           }
           
           for (auto k = mostQueue.size(); k > 0; --k) 
           {
             mostQueue.pop();
           }
-          
+          currentSortLength = 0;
           rowBeginIters.clear();
           rowEndIters.clear();
+          pixValueAverage = 0;
+          minSortMultiplied = false;
           continue;
         } 
         else
         {
-          mostQueue.push(getColumnPixelAverage(i, j, shiftInfo));
+          mostQueue.push(getColumnPixelAverage(i, j, shiftInfo, in_data, pixValueAverage));
           sortLength = getSortLength(mostQueue.top(), shiftInfo);                
         }
       }
@@ -525,6 +597,7 @@ PreRender(PF_InData         *in_data,
   PF_Err            err = PF_Err_NONE;
   PF_ParamDef       sortSliderParam; 
   PF_ParamDef       minSortSlider; 
+  PF_ParamDef       minSortRandomSlider;
   PF_ParamDef       shiftSortButton;
   PF_ParamDef       sortWidthSlider;
   PF_ParamDef       variableSortCheckbox;
@@ -583,6 +656,14 @@ PreRender(PF_InData         *in_data,
 
       ERR(PF_CHECKOUT_PARAM(
         in_data, 
+        MIN_SORT_RAND_SLIDER,
+        in_data->current_time,
+        in_data->time_step, 
+        in_data->time_scale,
+        &minSortRandomSlider));
+
+      ERR(PF_CHECKOUT_PARAM(
+        in_data, 
         SORT_WIDTH_SLIDER,
         in_data->current_time,
         in_data->time_step, 
@@ -634,7 +715,17 @@ PreRender(PF_InData         *in_data,
           infoP->sortButton                  = shiftSortButton;
           infoP->variableSortOn              = variableSortCheckbox.u.fd.value;
           infoP->variableValue               = static_cast<float>(variableSlider.u.fd.value);
+          infoP->minSortRandValue            = minSortRandomSlider.u.fd.value;
           
+          infoP->sortSliderParam      = sortSliderParam;
+          infoP->minSortSlider        = minSortSlider;
+          infoP->sortWidthSlider      = sortWidthSlider;
+          infoP->shiftSortButton      = shiftSortButton;
+          infoP->variableSortCheckbox = variableSortCheckbox;
+          infoP->variableSlider       = variableSlider;
+          infoP->minSortRandomSlider  = minSortRandomSlider;
+
+
           for (int i = 0; i < in_data->width; ++i) 
           {
             infoP->pixelMap.push_back(std::vector<PF_Pixel>{});
