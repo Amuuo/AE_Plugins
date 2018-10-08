@@ -64,6 +64,8 @@ enum {
   SORT_WIDTH_SLIDER,
   VARIABLE_SORT_CHECKBOX,
   VARIABLE_SLIDER,
+  MIN_REVERSE_DIST_SLIDER,
+  REVERSE_SORT_CHECKBOX,
 	SHIFT_NUM_PARAMS
 };
 
@@ -93,6 +95,8 @@ typedef struct {
   PF_ParamDef    sortWidthSlider;
   PF_ParamDef    variableSortCheckbox;
   PF_ParamDef    variableSlider;
+  PF_ParamDef    minReverseSortSlider;
+  PF_ParamDef    reverseSortCheckbox;
   PF_Fixed       sortRangeBoosterSliderValue;
   PF_Fixed       minSortLengthSliderValue;
   PF_Fixed       sortWidthSliderValue;
@@ -121,6 +125,8 @@ struct queueCompare
   }
 };
 
+
+AEGP_PluginID pluginID;
 
 extern "C" {
 

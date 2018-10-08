@@ -60,6 +60,10 @@ GlobalSetup (PF_InData   *in_data,
              PF_ParamDef *params[],
              PF_LayerDef *output )
 {
+  
+  AEGP_SuiteHandler  suites(in_data->pica_basicP); 
+  suites.UtilitySuite6()->AEGP_RegisterWithAEGP(NULL, "Shifter", &pluginID);
+
   out_data->my_version = PF_VERSION(
     MAJOR_VERSION, 
     MINOR_VERSION,
@@ -107,6 +111,8 @@ ParamsSetup (PF_InData    *in_data,
   PF_ADD_SLIDER("Sort Width", 1, 200, 1, 200, 15, SORT_WIDTH_SLIDER);
   PF_ADD_CHECKBOX("Variable Sort Length", "Variable Sort Length", 0, NULL, VARIABLE_SORT_CHECKBOX);
   PF_ADD_SLIDER("Variable Range", 0, 100, 0, 100, 50, VARIABLE_SLIDER);
+  PF_ADD_SLIDER("Minimum Reverse Sort Distance", 0, 300, 0, 300, 0, MIN_REVERSE_DIST_SLIDER);
+  PF_ADD_CHECKBOX("Reverse Sort", "Reverse Sort", 0, NULL, REVERSE_SORT_CHECKBOX);
   
  
   out_data->num_params = SHIFT_NUM_PARAMS; 
@@ -186,9 +192,10 @@ sortFunc = [&](const PF_Pixel& left, const PF_Pixel& right)
 inline void storeRowIters(int columnNumber, 
                           int columnPosition,
                           std::vector<std::vector<PF_Pixel>::iterator>& rowIters,
-                          ShiftInfo* shiftInfo)
+                          ShiftInfo* shiftInfo,
+                          int sortWidth)
   {
-    for(int k = columnNumber; k < (columnNumber+shiftInfo->sortWidthSliderValue) && 
+    for(int k = columnNumber; k < (columnNumber+sortWidth) && 
         k < shiftInfo->in_data.width-1; ++k)
     {
       rowIters.push_back(shiftInfo->pixelMap[k].begin()+columnPosition);
@@ -267,7 +274,7 @@ sortPixelMap(ShiftInfo* shiftInfo,
   int maxPixelValueDistance{0};
   float minSortLengthRand{0};
   float pixValueAverage{0};
-  bool minSortMultiplied{false};
+  bool shortSortDistanceBool{false};
 
   highestPixelValueQueue mostQueue;
   iteratorVector         rowBeginIters;
@@ -279,7 +286,7 @@ sortPixelMap(ShiftInfo* shiftInfo,
   for (int i{0}; i < in_data->width; i+=sortWidth) 
   {    
     rowBeginIters.clear();
-    storeRowIters(i, 0, rowBeginIters, shiftInfo);
+    storeRowIters(i, 0, rowBeginIters, shiftInfo, shiftInfo->sortWidthSliderValue);
 
     for (int j{0}, currentSortLength{0}; j < in_data->height; ++j, ++currentSortLength) 
     {                                                 
@@ -291,7 +298,8 @@ sortPixelMap(ShiftInfo* shiftInfo,
         storeRowIters(i, 
                       j, 
                       rowBeginIters, 
-                      shiftInfo);        
+                      shiftInfo,
+                      shiftInfo->sortWidthSliderValue);        
         
         mostQueue.push(getColumnPixelAverage(i, 
                        j, 
@@ -320,26 +328,35 @@ sortPixelMap(ShiftInfo* shiftInfo,
           sortLength += sortBoosterValue;
         }
         
-        if (maxPixelValueDistance>sortLength && 
-            currentSortLength<minSortLength && !minSortMultiplied)
-        {
-          sortLength *= 2;
-          minSortMultiplied = true;
-        }
 
         minSortLengthRand = (minSortLength + (random() % shiftInfo->minSortRandValue)) * 
             ((765-pixValueAverage)/765 + 1);
         
+        
         if (maxPixelValueDistance > sortLength && 
               currentSortLength > minSortLengthRand|| 
                 j == shiftInfo->in_data.height - 1) 
-        {       
-          storeRowIters(i, j, rowEndIters, shiftInfo);          
+        { 
+
+          if (currentSortLength < shiftInfo->minReverseSortSlider.u.fd.value)
+          {                
+            shortSortDistanceBool = true;
+          }
+          
+          storeRowIters(i, j, rowEndIters, shiftInfo, shiftInfo->sortWidthSliderValue);
+
           
           for (int h{0}; h < rowBeginIters.size(); ++h)
           {
             sort(rowBeginIters[h], rowEndIters[h], sortFunc);
-            reverse(rowBeginIters[h], rowEndIters[h]);
+            
+            if (shiftInfo->reverseSortCheckbox.u.bd.value){
+              reverse(rowBeginIters[h], rowEndIters[h]);
+            }
+            if (shortSortDistanceBool)
+            {
+              reverse(rowBeginIters[h], rowEndIters[h]);
+            }
           }
           
           for (auto k = mostQueue.size(); k > 0; --k) 
@@ -350,7 +367,7 @@ sortPixelMap(ShiftInfo* shiftInfo,
           rowBeginIters.clear();
           rowEndIters.clear();
           pixValueAverage = 0;
-          minSortMultiplied = false;
+          shortSortDistanceBool = false;
           continue;
         } 
         else
@@ -479,7 +496,44 @@ SmartRender(PF_InData           *in_data,
       out_data}
   };
 
+  AEGP_LayerH currentLayer;
+  AEGP_ItemH currentItem;
+  AEGP_ItemType itemType;
+  A_long itemWidth;
+  A_long itemHeight;
+  A_long numOfEffects;
+  AEGP_MaskRefH maskRef;
+  AEGP_EffectRefH effectRef;
+  AEGP_StreamRefH streamRef;  
+  AEGP_MaskOutlineValH maskOutline;
+  AEGP_MaskVertex maskVertex;
+  AEGP_StreamValue2 streamValue;
+  AEGP_StreamType streamType;
+  A_long numOfMasks;
+  A_Time currentATime;
 
+  suites.LayerSuite8()->AEGP_GetActiveLayer(&currentLayer);
+  suites.ItemSuite9()->AEGP_GetActiveItem(&currentItem);
+  suites.StreamSuite4()->AEGP_GetNewLayerStream(pluginID, currentLayer, AEGP_LayerStream_POSITION, &streamRef);
+  suites.ItemSuite9()->AEGP_GetItemType(currentItem, &itemType);
+  suites.ItemSuite9()->AEGP_GetItemDimensions(currentItem, &itemWidth, &itemHeight);
+  suites.EffectSuite4()->AEGP_GetLayerNumEffects(currentLayer, &numOfEffects);
+  suites.EffectSuite4()->AEGP_GetLayerEffectByIndex(pluginID, currentLayer, 0, &effectRef);
+  suites.WorldSuite3()->AEGP_New(pluginID, )
+  suites.MaskSuite6()->AEGP_GetLayerMaskByIndex(currentLayer, 0, &maskRef);
+  suites.StreamSuite4()->AEGP_GetStreamType(streamRef, &streamType);
+  suites.StreamSuite4()->AEGP_GetNewStreamValue(pluginID, streamRef, AEGP_LTimeMode_LayerTime, &currentATime, true, &streamValue);
+  suites.MaskSuite6()->AEGP_GetLayerNumMasks(currentLayer, &numOfMasks);
+  
+  maskOutline = reinterpret_cast<AEGP_MaskOutlineValH>(streamValue.val.mask);
+  
+  suites.MaskOutlineSuite3()->AEGP_GetMaskOutlineVertexInfo(maskOutline, 1, &maskVertex);
+
+  //suites.StreamSuite4()->AEGP_GetNewStreamValue(pluginID, streamRef, AEGP_LTimeMode_LayerTime, &currentATime, true, &streamValue);      
+  //suites.MaskOutlineSuite3()->AEGP_GetMaskOutlineVertexInfo(streamValue.val.mask, 0, &maskVertex);
+
+  
+  
 
 
   if (infoP) 
@@ -602,6 +656,8 @@ PreRender(PF_InData         *in_data,
   PF_ParamDef       sortWidthSlider;
   PF_ParamDef       variableSortCheckbox;
   PF_ParamDef       variableSlider;
+  PF_ParamDef       reverseSortCheckbox;
+  PF_ParamDef       minReverseSortSlider;
   PF_RenderRequest  req = extra->input->output_request;
   PF_CheckoutResult in_result;
   AEGP_SuiteHandler suites(in_data->pica_basicP);
@@ -686,6 +742,22 @@ PreRender(PF_InData         *in_data,
         in_data->time_scale,
         &variableSlider));
 
+      ERR(PF_CHECKOUT_PARAM(
+        in_data, 
+        MIN_REVERSE_DIST_SLIDER,
+        in_data->current_time,
+        in_data->time_step, 
+        in_data->time_scale,
+        &minReverseSortSlider));
+
+      ERR(PF_CHECKOUT_PARAM(
+        in_data, 
+        REVERSE_SORT_CHECKBOX,
+        in_data->current_time,
+        in_data->time_step, 
+        in_data->time_scale,
+        &reverseSortCheckbox));
+
       
 
       if (!err)
@@ -716,7 +788,8 @@ PreRender(PF_InData         *in_data,
           infoP->variableSortOn              = variableSortCheckbox.u.fd.value;
           infoP->variableValue               = static_cast<float>(variableSlider.u.fd.value);
           infoP->minSortRandValue            = minSortRandomSlider.u.fd.value;
-          
+
+          infoP->reverseSortCheckbox  = reverseSortCheckbox;
           infoP->sortSliderParam      = sortSliderParam;
           infoP->minSortSlider        = minSortSlider;
           infoP->sortWidthSlider      = sortWidthSlider;
@@ -724,7 +797,7 @@ PreRender(PF_InData         *in_data,
           infoP->variableSortCheckbox = variableSortCheckbox;
           infoP->variableSlider       = variableSlider;
           infoP->minSortRandomSlider  = minSortRandomSlider;
-
+          infoP->minReverseSortSlider = minReverseSortSlider;
 
           for (int i = 0; i < in_data->width; ++i) 
           {
