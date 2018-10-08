@@ -60,17 +60,21 @@ GlobalSetup (PF_InData   *in_data,
              PF_ParamDef *params[],
              PF_LayerDef *output )
 {
-  out_data->my_version = PF_VERSION(MAJOR_VERSION, 
-                                    MINOR_VERSION,
-                                    BUG_VERSION, 
-                                    STAGE_VERSION, 
-                                    BUILD_VERSION);
+  out_data->my_version = PF_VERSION(
+    MAJOR_VERSION, 
+    MINOR_VERSION,
+    BUG_VERSION, 
+    STAGE_VERSION, 
+    BUILD_VERSION);
 
 
   out_data->out_flags =  PF_OutFlag_PIX_INDEPENDENT  |
                          PF_OutFlag_DEEP_COLOR_AWARE |
                          PF_OutFlag_NON_PARAM_VARY |
-                         PF_OutFlag_SEND_UPDATE_PARAMS_UI;
+                         PF_OutFlag_SEND_UPDATE_PARAMS_UI |
+                         PF_OutFlag_USE_OUTPUT_EXTENT |
+                         PF_OutFlag_REFRESH_UI | 
+                         PF_OutFlag_FORCE_RERENDER;
 
   out_data->out_flags2 = PF_OutFlag2_FLOAT_COLOR_AWARE |
                          PF_OutFlag2_SUPPORTS_SMART_RENDER |
@@ -94,14 +98,14 @@ ParamsSetup (PF_InData    *in_data,
 {
   PF_Err      err = PF_Err_NONE;
   PF_ParamDef def;
-  
-  def.flags = PF_ParamFlag_SUPERVISE;
 
+  
   PF_ADD_BUTTON("Sort", "Sort", PF_ParamFlag_SUPERVISE, NULL, SORT_BUTTON);
   PF_ADD_SLIDER("Sort Range Booster", 5, 350, 5, 350, 200, SORT_LENGTH_BOOSTER_SLIDER);
   PF_ADD_SLIDER("Minimum Sort Length", 5, 200, 5, 200, 5, MIN_SORT_LENGTH_SLIDER);
   PF_ADD_SLIDER("Sort Width", 1, 50, 1, 100, 35, SORT_WIDTH_SLIDER);
   
+ 
   out_data->num_params = SHIFT_NUM_PARAMS; 
 
   
@@ -126,7 +130,7 @@ ShiftImage8 (void     *refcon,
 
   if (siP->mapCreated) 
   {           
-    *inP = siP->pixelMap[xL][yL];
+    //*inP = siP->pixelMap[xL][yL];
     outP->alpha = siP->pixelMap[xL][yL].alpha;
     outP->blue  = siP->pixelMap[xL][yL].blue;
     outP->green = siP->pixelMap[xL][yL].green;
@@ -144,11 +148,11 @@ ShiftImage8 (void     *refcon,
 
 
 
-inline int getMinSortLength(int rgbValue, ShiftInfo* shiftInfo)
+inline int getSortLength(int rgbValue, ShiftInfo* shiftInfo)
 {
   int divider = shiftInfo->sortRangeBoosterSliderValue*2;
-  int multiplier = shiftInfo->minSortLengthSliderValue;
-  return static_cast<int>(pow(rgbValue/(divider*multiplier), 2));
+
+  return rgbValue > divider ? pow(rgbValue/divider, 2) : 5;
 }
 
 
@@ -213,15 +217,18 @@ void
 sortPixelMap(ShiftInfo* shiftInfo, 
              PF_InData* in_data) 
 {  
-  using highestPixelValueQueue = std::priority_queue<int, std::vector<int>, queueCompare>;
-  using iteratorVector         = std::vector<std::vector<PF_Pixel>::iterator>;
+  using namespace std;
+  using highestPixelValueQueue = priority_queue<int, vector<int>, queueCompare>;
+  using iteratorVector         = vector<vector<PF_Pixel>::iterator>;
 
 
-  int sortSteps2    = 20;
-  int minSortLength = shiftInfo->minSortLengthSliderValue;
-  int sortSteps     = shiftInfo->sortRangeBoosterSliderValue;
-  int sortWidth     = shiftInfo->sortWidthSliderValue;
-  
+  int sortLength        = 20;
+  int minSortLength     = shiftInfo->minSortLengthSliderValue;
+  int sortBoosterValue  = shiftInfo->sortRangeBoosterSliderValue;
+  int sortWidth         = shiftInfo->sortWidthSliderValue;
+  int maxPixelValueDistance{0};
+
+
   highestPixelValueQueue mostQueue;
   iteratorVector         rowBeginIters;
   iteratorVector         rowEndIters;
@@ -241,12 +248,15 @@ sortPixelMap(ShiftInfo* shiftInfo,
         rowBeginIters.clear();
         storeRowIters(i, j, rowBeginIters, shiftInfo);        
         mostQueue.push(getColumnPixelAverage(i, j, shiftInfo));
-        sortSteps2 = getMinSortLength(mostQueue.top(), shiftInfo);
+        sortLength = getSortLength(mostQueue.top(), shiftInfo);
       }
       else
-      {                               
-        if (std::abs(mostQueue.top()-getColumnPixelAverage(i, j, shiftInfo)) > sortSteps
-           /*sortSteps2*/ || j == shiftInfo->in_data.height - 1) 
+      {  
+        maxPixelValueDistance = abs(mostQueue.top()-getColumnPixelAverage(i,j,shiftInfo));
+        
+        if (maxPixelValueDistance > sortLength && 
+              maxPixelValueDistance > minSortLength|| 
+                j == shiftInfo->in_data.height - 1) 
         {       
           storeRowIters(i, j, rowEndIters, shiftInfo);          
           
@@ -267,10 +277,16 @@ sortPixelMap(ShiftInfo* shiftInfo,
         else
         {
           mostQueue.push(getColumnPixelAverage(i, j, shiftInfo));
-          //sortSteps2 = getMinSortLength(mostQueue.top(), shiftInfo);                
+          sortLength = getSortLength(mostQueue.top(), shiftInfo);                
         }
       }
     }           
+  }
+  rowBeginIters.clear();
+  rowEndIters.clear();
+  for (int i = 0; i<mostQueue.size(); ++i)
+  {
+    mostQueue.pop();
   }
 }
 
@@ -288,7 +304,7 @@ Render (PF_InData   *in_data,
   ShiftInfo       si;
   PF_Err          err        = PF_Err_NONE;
   PF_Fixed        sortLength = params[SORT_LENGTH_BOOSTER_SLIDER]->u.fd.value;
-  A_long          linesL     = 0;
+  A_long          linesL     = in_data->height;
   PF_EffectWorld  *inputP    = &params[SHIFT_INPUT]->u.ld;
 
 
@@ -333,9 +349,11 @@ RespondtoAEGP (PF_InData    *in_data,
   
   AEGP_SuiteHandler suites(in_data->pica_basicP);
   
-  suites.ANSICallbacksSuite1()->sprintf(out_data->return_msg, 
-                                        "%s",  
-                                        reinterpret_cast<A_char*>(extraP));
+  suites.ANSICallbacksSuite1()->sprintf(
+    out_data->return_msg, 
+    "%s",  
+    reinterpret_cast<A_char*>(extraP));
+  
   return err;
 }
 
@@ -451,7 +469,6 @@ SmartRender(PF_InData           *in_data,
             NULL,
             NULL));
         */
-        extra->cb->checkin_layer_pixels(in_data->effect_ref, INPUT_ID);        
     } 
     else 
     {
@@ -474,6 +491,16 @@ SmartRender(PF_InData           *in_data,
     kPFWorldSuite, 
     kPFWorldSuiteVersion2, 
     "Couldn't release suite."));
+
+  for (auto map:infoP->pixelMap)
+  {
+    map.clear();
+  }
+  infoP->pixelMap.clear();
+
+
+  extra->cb->checkin_layer_pixels(in_data->effect_ref, INPUT_ID);        
+
 
   return err;
 }
@@ -520,13 +547,16 @@ PreRender(PF_InData         *in_data,
       AEFX_CLR_STRUCT(shift_sort_button);
       
       
+      suites.UtilitySuite6()->AEGP_WriteToDebugLog("C:/Users/Adam/debug.txt", "Utility Test", "hello");
+      suites.UtilitySuite6()->AEGP_WriteToOSConsole("HELLO FROM CODE");
+      
       ERR(PF_CHECKOUT_PARAM(
         in_data, 
         SORT_BUTTON,
         in_data->current_time,
         in_data->time_step, 
         in_data->time_scale,
-        &shift_sort_button));
+        &shift_sort_button)); 
 
       ERR(PF_CHECKOUT_PARAM(
         in_data, 
@@ -680,6 +710,16 @@ EntryPointFunc (PF_Cmd      cmd,
           out_data,
           params, 
           output);
+        
+        break;
+
+      case PF_Cmd_FRAME_SETUP:
+        
+        
+        break;
+
+      case PF_Cmd_EVENT:
+        
         
         break;
 

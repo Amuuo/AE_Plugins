@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+# Visual Studio 15
+VisualStudioVersion = 15.0.28010.2036
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AEGPs", "AEGPs", "{A6972019-D302-44FD-954F-30F6BA10DA5E}"
 EndProject
@@ -79,6 +79,9 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GLator", "Effect\GLator\Win\GLator.vcxproj", "{B1EA93DE-D4BB-4B73-B0F4-441B9B0E077E}"
 EndProject
 Global
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
 		Debug|x86 = Debug|x86
@@ -360,5 +363,8 @@ Global
 		{FFA30E5C-80D9-4367-8F49-A551612C13D5} = {DB18F278-ED36-45C8-9067-0C3F333DB994}
 		{57DD9A67-F66B-4E44-90F9-2DEABE5B6C92} = {A887BB7E-E722-4D88-AE52-751742311A4F}
 		{B1EA93DE-D4BB-4B73-B0F4-441B9B0E077E} = {DB18F278-ED36-45C8-9067-0C3F333DB994}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3CC78B79-9955-44E5-929D-30C4DBEC9297}
 	EndGlobalSection
 EndGlobal
