@@ -61,6 +61,8 @@ enum {
   SORT_LENGTH_BOOSTER_SLIDER,
   MIN_SORT_LENGTH_SLIDER,
   SORT_WIDTH_SLIDER,
+  VARIABLE_SORT_CHECKBOX,
+  VARIABLE_SLIDER,
 	SHIFT_NUM_PARAMS
 };
 
@@ -68,7 +70,7 @@ enum {
 	DISPLACE_DISK_ID = 1,
 	BLEND_DISK_ID,
 	USE_TRANSFORM_DISK_ID,
-  BUTTON_ID, 
+  BUTTON_ID,
   INPUT_ID
 };
 #define SHIFT_DISPLACE_X_DFLT	(10L)
@@ -86,7 +88,9 @@ typedef struct {
   PF_Fixed       sortRangeBoosterSliderValue;
   PF_Fixed       minSortLengthSliderValue;
   PF_Fixed       sortWidthSliderValue;
+  float          variableValue;
   PF_ParamDef    sortButton;
+  bool           variableSortOn;
   PF_EffectWorld originalCopy;
   PF_EffectWorld inputCopy;
 	PF_ProgPtr	   ref;

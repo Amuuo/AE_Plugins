@@ -102,8 +102,10 @@ ParamsSetup (PF_InData    *in_data,
   
   PF_ADD_BUTTON("Sort", "Sort", PF_ParamFlag_SUPERVISE, NULL, SORT_BUTTON);
   PF_ADD_SLIDER("Sort Range Booster", 5, 350, 5, 350, 200, SORT_LENGTH_BOOSTER_SLIDER);
-  PF_ADD_SLIDER("Minimum Sort Length", 5, 200, 5, 200, 5, MIN_SORT_LENGTH_SLIDER);
+  PF_ADD_SLIDER("Minimum Sort Length", 5, 200, 5, 200, 50, MIN_SORT_LENGTH_SLIDER);
   PF_ADD_SLIDER("Sort Width", 1, 50, 1, 100, 35, SORT_WIDTH_SLIDER);
+  PF_ADD_CHECKBOX("Variable Sort Length", "Variable Sort Length", 1, NULL, VARIABLE_SORT_CHECKBOX);
+  PF_ADD_SLIDER("Variable Range", 0, 100, 0, 100, 50, VARIABLE_SLIDER);
   
  
   out_data->num_params = SHIFT_NUM_PARAMS; 
@@ -150,9 +152,9 @@ ShiftImage8 (void     *refcon,
 
 inline int getSortLength(int rgbValue, ShiftInfo* shiftInfo)
 {
-  int divider = shiftInfo->sortRangeBoosterSliderValue*2;
-
-  return rgbValue > divider ? pow(rgbValue/divider, 2) : 5;
+  //float divider = static_cast<float>(shiftInfo->sortRangeBoosterSliderValue);
+  float variability = pow(shiftInfo->variableValue/100, -1) * 700000;
+  return static_cast<int>(pow(rgbValue, 3)/variability);
 }
 
 
@@ -254,6 +256,11 @@ sortPixelMap(ShiftInfo* shiftInfo,
       {  
         maxPixelValueDistance = abs(mostQueue.top()-getColumnPixelAverage(i,j,shiftInfo));
         
+        if (!shiftInfo->variableSortOn)
+        {
+          sortLength = sortBoosterValue;
+        }
+
         if (maxPixelValueDistance > sortLength && 
               maxPixelValueDistance > minSortLength|| 
                 j == shiftInfo->in_data.height - 1) 
@@ -436,7 +443,7 @@ SmartRender(PF_InData           *in_data,
           0, 
           output_worldP->height,
           input_worldP, 
-          NULL,
+          &input_worldP->extent_hint,
           &origin,
           (void*)(infoP),
           ShiftImage8,
@@ -452,7 +459,7 @@ SmartRender(PF_InData           *in_data,
           0, 
           output_worldP->height,
           input_worldP, 
-          NULL,
+          &input_worldP->extent_hint,
           &origin,
           (void*)(infoP),
           ShiftImage8,
@@ -516,18 +523,20 @@ PreRender(PF_InData         *in_data,
 {
 
   PF_Err            err = PF_Err_NONE;
-  PF_ParamDef       sort_slider_param; 
-  PF_ParamDef       min_sort_slider; 
-  PF_ParamDef       shift_sort_button;
-  PF_ParamDef       sort_width_slider;
+  PF_ParamDef       sortSliderParam; 
+  PF_ParamDef       minSortSlider; 
+  PF_ParamDef       shiftSortButton;
+  PF_ParamDef       sortWidthSlider;
+  PF_ParamDef       variableSortCheckbox;
+  PF_ParamDef       variableSlider;
   PF_RenderRequest  req = extra->input->output_request;
   PF_CheckoutResult in_result;
   AEGP_SuiteHandler suites(in_data->pica_basicP);
   PF_Handle         infoH = suites.HandleSuite1()->host_new_handle(sizeof(ShiftInfo));
     
   
-  shift_sort_button.param_type = PF_Param_BUTTON;
-  shift_sort_button.flags = PF_ParamFlag_SUPERVISE;
+  shiftSortButton.param_type = PF_Param_BUTTON;
+  shiftSortButton.flags = PF_ParamFlag_SUPERVISE;
   
 
 
@@ -541,14 +550,12 @@ PreRender(PF_InData         *in_data,
     {
       extra->output->pre_render_data = infoH;
       
-      AEFX_CLR_STRUCT(sort_slider_param);
-      AEFX_CLR_STRUCT(min_sort_slider);
-      AEFX_CLR_STRUCT(sort_width_slider);
-      AEFX_CLR_STRUCT(shift_sort_button);
+      AEFX_CLR_STRUCT(sortSliderParam);
+      AEFX_CLR_STRUCT(minSortSlider);
+      AEFX_CLR_STRUCT(sortWidthSlider);
+      AEFX_CLR_STRUCT(shiftSortButton);
+      AEFX_CLR_STRUCT(variableSortCheckbox);
       
-      
-      suites.UtilitySuite6()->AEGP_WriteToDebugLog("C:/Users/Adam/debug.txt", "Utility Test", "hello");
-      suites.UtilitySuite6()->AEGP_WriteToOSConsole("HELLO FROM CODE");
       
       ERR(PF_CHECKOUT_PARAM(
         in_data, 
@@ -556,7 +563,7 @@ PreRender(PF_InData         *in_data,
         in_data->current_time,
         in_data->time_step, 
         in_data->time_scale,
-        &shift_sort_button)); 
+        &shiftSortButton)); 
 
       ERR(PF_CHECKOUT_PARAM(
         in_data, 
@@ -564,7 +571,7 @@ PreRender(PF_InData         *in_data,
         in_data->current_time,
         in_data->time_step, 
         in_data->time_scale,
-        &sort_slider_param));
+        &sortSliderParam));
 
       ERR(PF_CHECKOUT_PARAM(
         in_data, 
@@ -572,7 +579,7 @@ PreRender(PF_InData         *in_data,
         in_data->current_time,
         in_data->time_step, 
         in_data->time_scale,
-        &min_sort_slider));
+        &minSortSlider));
 
       ERR(PF_CHECKOUT_PARAM(
         in_data, 
@@ -580,7 +587,23 @@ PreRender(PF_InData         *in_data,
         in_data->current_time,
         in_data->time_step, 
         in_data->time_scale,
-        &sort_width_slider));
+        &sortWidthSlider));
+
+      ERR(PF_CHECKOUT_PARAM(
+        in_data, 
+        VARIABLE_SORT_CHECKBOX,
+        in_data->current_time,
+        in_data->time_step, 
+        in_data->time_scale,
+        &variableSortCheckbox));
+
+      ERR(PF_CHECKOUT_PARAM(
+        in_data, 
+        VARIABLE_SLIDER,
+        in_data->current_time,
+        in_data->time_step, 
+        in_data->time_scale,
+        &variableSlider));
 
       
 
@@ -605,11 +628,12 @@ PreRender(PF_InData         *in_data,
         if (!err)
         {
           AEFX_CLR_STRUCT(*infoP);
-          infoP->sortRangeBoosterSliderValue = sort_slider_param.u.fd.value;
-          infoP->minSortLengthSliderValue    = min_sort_slider.u.fd.value;
-          infoP->sortWidthSliderValue        = sort_width_slider.u.fd.value;
-          infoP->sortButton                  = shift_sort_button;
-
+          infoP->sortRangeBoosterSliderValue = sortSliderParam.u.fd.value;
+          infoP->minSortLengthSliderValue    = minSortSlider.u.fd.value;
+          infoP->sortWidthSliderValue        = sortWidthSlider.u.fd.value;
+          infoP->sortButton                  = shiftSortButton;
+          infoP->variableSortOn              = variableSortCheckbox.u.fd.value;
+          infoP->variableValue               = static_cast<float>(variableSlider.u.fd.value);
           
           for (int i = 0; i < in_data->width; ++i) 
           {
@@ -629,6 +653,13 @@ PreRender(PF_InData         *in_data,
           //  For SmartFX, AE automagically checks in any params checked out 
           //  during PF_Cmd_SMART_PRE_RENDER, new or old-fashioned.
         }
+
+        PF_CHECKIN_PARAM(in_data, &variableSlider);
+        PF_CHECKIN_PARAM(in_data, &variableSortCheckbox);
+        PF_CHECKIN_PARAM(in_data, &sortWidthSlider);
+        PF_CHECKIN_PARAM(in_data, &minSortSlider);
+        PF_CHECKIN_PARAM(in_data, &variableSlider);
+        PF_CHECKIN_PARAM(in_data, &sortSliderParam);
       }
 
       //suites.HandleSuite1()->host_unlock_handle(infoH);
