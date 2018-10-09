@@ -823,7 +823,7 @@ getLineWidthPixelAverage()
   int columnWidthSpan = lineCounter + sortWidth;
   
   for(int i = lineCounter; i < columnWidthSpan && i < pixelLines-1; ++i)  
-    columnAvg += shiftInfoCopy->pixelMap[i][pixelCounter].pixelValue;
+    columnAvg += static_cast<int>(shiftInfoCopy->pixelMap[i][pixelCounter].pixelValue);
   
   columnAvg /= sortWidth;
 }
@@ -938,7 +938,7 @@ inline void ShiftInfo::PixelSorter::getAndStorePixelValue()
   getLineWidthPixelAverage();
   mostQueue.push(columnAvg);
   leastQueue.push(columnAvg);
-  currentPixelValueDistance = mostQueue.top()-leastQueue.top();
+  currentPixelValueDistance = static_cast<int>(mostQueue.top()-leastQueue.top());
 }
 
 
@@ -953,7 +953,7 @@ inline void ShiftInfo::PixelSorter::getUserSetMinLength()
   {
     userMinLength += minSortLength; 
     userMinLength += random() % (minSortRandValue/2) - minSortRandValue;
-    userMinLength *= (MAX_RBG_VALUE-columnAvg)/MAX_RBG_VALUE + 1;
+    userMinLength *= static_cast<int>((MAX_RBG_VALUE-columnAvg)/MAX_RBG_VALUE) + 1;
   }
 }
 
