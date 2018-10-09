@@ -110,7 +110,13 @@ ParamsSetup (PF_InData    *in_data,
   PF_ADD_SLIDER("Minimum Sort Random", 1, 200, 1, 200, 1, MIN_SORT_RAND_SLIDER);
   PF_ADD_SLIDER("Sort Width", 1, 200, 1, 200, 5, SORT_WIDTH_SLIDER);
   PF_ADD_CHECKBOX("Variable Sort Length", "Variable Sort Length", 0, NULL, VARIABLE_SORT_CHECKBOX);
-  PF_ADD_SLIDER("Variable Range", 0, 300, 0, 300, 50, VARIABLE_SLIDER);
+  
+  PF_ADD_FLOAT_EXPONENTIAL_SLIDER("Variable Range", 1, 2, 1, 2, 1, 
+                                  AEFX_AUDIO_DEFAULT_CURVE_TOLERANCE, 
+                                  PF_Precision_HUNDREDTHS, NULL, NULL, 
+                                  2, VARIABLE_SLIDER);
+
+  PF_ADD_CHECKBOX("Favor Dark Ranges", "Favor Dark Ranges", 0, NULL, FAVOR_DARK_RANGES);
   PF_ADD_SLIDER("Minimum Reverse Sort Distance", 0, 300, 0, 300, 0, MIN_REVERSE_DIST_SLIDER);
   PF_ADD_CHECKBOX("Reverse Sort", "Reverse Sort", 0, NULL, REVERSE_SORT_CHECKBOX);
   PF_ADD_CHECKBOX("Switch Orientation", "Switch Orientation", 0, NULL, SWITCH_ORIENTAION_CHECKBOX);
@@ -505,6 +511,15 @@ PreRender(PF_InData*         in_data,
 
       ERR(PF_CHECKOUT_PARAM(
         in_data, 
+        FAVOR_DARK_RANGES,
+        in_data->current_time,
+        in_data->time_step, 
+        in_data->time_scale,
+        &infoP->favorDarkRangesCheckbox));
+
+
+      ERR(PF_CHECKOUT_PARAM(
+        in_data, 
         MIN_REVERSE_DIST_SLIDER,
         in_data->current_time,
         in_data->time_step, 
@@ -719,14 +734,15 @@ ShiftInfo::PixelSorter::
 PixelSorter(ShiftInfo * shiftInfo)  : 
     minSortLength           {shiftInfo->minSortSlider.u.fd.value}, 
     sortValueRange          {shiftInfo->sortValueRange.u.fd.value},
-    sortLength              {shiftInfo->sortValueRange.u.fd.value},
+    sortLength              {static_cast<PF_FpLong>(shiftInfo->sortValueRange.u.fd.value)},
     sortWidth               {shiftInfo->sortWidthSlider.u.fd.value},
     userMinReverseSortValue {shiftInfo->minReverseSortSlider.u.fd.value},
     minSortRandValue        {shiftInfo->minSortRandomSlider.u.fd.value},
     userSelectedReverseSort {shiftInfo->reverseSortCheckbox.u.bd.value},
     layerWidth              {shiftInfo->in_data.width}, 
     layerHeight             {shiftInfo->in_data.height},
-    variableValue           {(float)shiftInfo->variableSlider.u.fd.value},
+    variableValue           {shiftInfo->variableSlider.u.fs_d.value},
+    userFavorsDarkRanges    {(bool)shiftInfo->favorDarkRangesCheckbox.u.bd.value},
     userSelectedVariableSort{shiftInfo->variableSortCheckbox.u.bd.value},
     verticalOrientation     {(bool)shiftInfo->switchOrientationCheckbox.u.bd.value},
     shiftInfoCopy           {shiftInfo}
@@ -787,10 +803,11 @@ getSortLength()
 {
   sortLength = sortValueRange;
   if (userSelectedVariableSort)
-  {
-    double variability = pow(variableValue/100, -1) * 800000;
-    variability = static_cast<int>(pow(mostQueue.top(), 3)/variability);  
-    sortLength *= sortValueRange/15;        
+  { 
+    if(userFavorsDarkRanges)
+      sortLength = (sortLength/4) * pow((abs(leastQueue.top()-MAX_RBG_VALUE)/MAX_RBG_VALUE+1), 2+(variableValue-1));
+    else
+      sortLength = (sortLength/4) * pow((mostQueue.top()/MAX_RBG_VALUE+1), 2+(variableValue-1));
   }
 }
 
@@ -804,10 +821,11 @@ getLineWidthPixelAverage()
 {
   columnAvg = 0;
   int columnWidthSpan = lineCounter + sortWidth;
+  
   for(int i = lineCounter; i < columnWidthSpan && i < pixelLines-1; ++i)  
     columnAvg += shiftInfoCopy->pixelMap[i][pixelCounter].pixelValue;
   
-  columnAvg /= sortWidth;  
+  columnAvg /= sortWidth;
 }
 
 
@@ -935,7 +953,7 @@ inline void ShiftInfo::PixelSorter::getUserSetMinLength()
   {
     userMinLength += minSortLength; 
     userMinLength += random() % (minSortRandValue/2) - minSortRandValue;
-    userMinLength *= (765-columnAvg)/765 + 1;
+    userMinLength *= (MAX_RBG_VALUE-columnAvg)/MAX_RBG_VALUE + 1;
   }
 }
 

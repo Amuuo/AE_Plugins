@@ -56,6 +56,7 @@ using namespace std;
 #define	BUG_VERSION			0
 #define	STAGE_VERSION		PF_Stage_DEVELOP
 #define	BUILD_VERSION		1
+#define MAX_RBG_VALUE  765.0f
 
 enum {
 	SORT_INPUT = 0,	// default input layer 
@@ -66,6 +67,7 @@ enum {
   SORT_WIDTH_SLIDER,
   VARIABLE_SORT_CHECKBOX,
   VARIABLE_SLIDER,
+  FAVOR_DARK_RANGES,
   MIN_REVERSE_DIST_SLIDER,
   REVERSE_SORT_CHECKBOX,
   SWITCH_ORIENTAION_CHECKBOX,
@@ -87,10 +89,10 @@ struct PixelStruct{
   PixelStruct(){}
   PixelStruct(const PF_Pixel& pixel) : 
     pixel{pixel}, 
-    pixelValue{pixel.blue + pixel.green+ pixel.red} {}
+    pixelValue{static_cast<PF_FpLong>(pixel.blue + pixel.green+ pixel.red)} {}
 
-  int      pixelValue;
-  PF_Pixel pixel;
+  PF_FpLong pixelValue;
+  PF_Pixel  pixel;
 };
 
 
@@ -106,6 +108,7 @@ class ShiftInfo{
   PF_ParamDef    sortWidthSlider;
   PF_ParamDef    variableSortCheckbox;
   PF_ParamDef    variableSlider;
+  PF_ParamDef    favorDarkRangesCheckbox;
   PF_ParamDef    minReverseSortSlider;
   PF_ParamDef    reverseSortCheckbox;
   PF_ParamDef    switchOrientationCheckbox;
@@ -131,8 +134,8 @@ class ShiftInfo{
     ~PixelSorter();
 
   
-    using highestPixelValueQueue = priority_queue<int, vector<int>, std::less<int>>;
-    using lowestPixelValueQueue  = priority_queue<int, vector<int>, std::greater<int>>;
+    using highestPixelValueQueue = priority_queue<PF_FpLong, vector<PF_FpLong>, std::less<PF_FpLong>>;
+    using lowestPixelValueQueue  = priority_queue<PF_FpLong, vector<PF_FpLong>, std::greater<PF_FpLong>>;
     using iteratorVector         = vector<vector<PixelStruct>::iterator>;
 
     PF_ParamValue  userSelectedReverseSort;
@@ -140,12 +143,15 @@ class ShiftInfo{
     ShiftInfo*     shiftInfoCopy;
     random_device  random;
   
-    float  minSortLengthRand{0};
-    float  pixValueAverage{0};
-    float  pixAvg{0};
-    float  variableValue;
+    PF_FpLong minSortLengthRand{0};
+    PF_FpLong pixValueAverage{0};
+    PF_FpLong pixAvg{0};
+    PF_FpLong variableValue;
+    PF_FpLong sortLength;
+    
     bool   lengthIsShortEnoughForFlip{false};
-    int    sortLength;
+    bool   userFavorsDarkRanges{false};
+    
     int    minSortLength;
     int    sortValueRange;
     int    sortWidth;
