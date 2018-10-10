@@ -123,7 +123,7 @@ ParamsSetup (PF_InData    *in_data,
   PF_ADD_SLIDER("High Range Sort Limit", 1, 765, 1, 765, 50, HIGH_RANGE_SORT_LIMIT);
   PF_ADD_SLIDER("Low Range Sort Limit", 0, 765, 0, 765, 50, LOW_RANGE_SORT_LIMIT);
 
-  PF_ADD_POPUP("Sort Method", 2, 0, "Variable Range|User-selected Range", SORT_METHOD_DROPDOWN);
+  PF_ADD_POPUP("Sort Method", 3, 0, "Variable Range|High Range|Low Range", SORT_METHOD_DROPDOWN);
   
  
   out_data->num_params = SORT_NUM_PARAMS; 
@@ -988,21 +988,19 @@ inline bool PixelSorter::pixelDistanceIsLongEnoughToSort()
   getSortLength();
   getUserSetMinLength();
 
-  if (sortMethodMenuChoice==USER_RANGE && mostQueue.top() >= highRangeLimit)
-  {
+  if (sortMethodMenuChoice==USER_RANGE_HIGH && mostQueue.top() >= highRangeLimit) 
     return true;  
-  }
-
+  
+  else if (sortMethodMenuChoice==USER_RANGE_LOW&&leastQueue.top()<=lowRangeLimit)  
+    return true;
+  
   else if (((currentPixelValueDistance >= sortLength) && (currPixDistance>userMinLength))||(pixelCounter==linePixels-1)) 
-  {
-      
+  { 
     lengthIsShortEnoughForFlip = currPixDistance < userMinReverseSortValue ? true:false; 
     return true;
   }
-  else
-  {
-    return false;
-  }
+  else  
+    return false;  
 }
 
 
@@ -1061,7 +1059,7 @@ inline void PixelSorter::getInterpolationValues()
   PF_FpLong iterpolationRange = mostQueue.top() - leastQueue.top();
   PF_FpLong iterpolationStep = iterpolationRange/currPixDistance;
   
-  for (auto h = 0; h < rowBeginIters.size(); ++h, iterpolationStep *= 2)
+  for (auto h = 0; h < rowBeginIters.size(); ++h, iterpolationStep+=iterpolationStep)
   {
     for (auto j = rowBeginIters[h]; j!=rowEndIters[h]; ++j)
     {

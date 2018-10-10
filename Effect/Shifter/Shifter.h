@@ -173,7 +173,8 @@ class PixelSorter : public Base
   enum SortMethods
   {
     SORT_BY_VARIABLE_RANGE=1,
-    USER_RANGE
+    USER_RANGE_HIGH,
+    USER_RANGE_LOW
   };
   
   using highestPixelValueQueue = priority_queue<PF_Fixed,vector<PF_Fixed>,less<PF_Fixed>>;
