@@ -72,17 +72,16 @@ GlobalSetup (PF_InData   *in_data,
     BUILD_VERSION);
 
 
-  out_data->out_flags =  PF_OutFlag_PIX_INDEPENDENT  |
-                         PF_OutFlag_DEEP_COLOR_AWARE |
-                         PF_OutFlag_NON_PARAM_VARY |
+  out_data->out_flags =  PF_OutFlag_NON_PARAM_VARY |
                          PF_OutFlag_SEND_UPDATE_PARAMS_UI |
                          PF_OutFlag_USE_OUTPUT_EXTENT |
                          PF_OutFlag_REFRESH_UI | 
                          PF_OutFlag_FORCE_RERENDER;
 
-  out_data->out_flags2 = PF_OutFlag2_FLOAT_COLOR_AWARE |
-                         PF_OutFlag2_SUPPORTS_SMART_RENDER |
-                         PF_OutFlag2_SUPPORTS_QUERY_DYNAMIC_FLAGS;
+  out_data->out_flags2 = PF_OutFlag2_SUPPORTS_SMART_RENDER |
+                         PF_OutFlag2_SUPPORTS_QUERY_DYNAMIC_FLAGS | 
+                         PF_OutFlag2_DOESNT_NEED_EMPTY_PIXELS | 
+                         PF_OutFlag2_AUTOMATIC_WIDE_TIME_INPUT;
 
   
 
@@ -119,7 +118,12 @@ ParamsSetup (PF_InData    *in_data,
   PF_ADD_CHECKBOX("Favor Dark Ranges", "Favor Dark Ranges", 0, NULL, FAVOR_DARK_RANGES);
   PF_ADD_SLIDER("Minimum Reverse Sort Distance", 0, 300, 0, 300, 0, MIN_REVERSE_DIST_SLIDER);
   PF_ADD_CHECKBOX("Reverse Sort", "Reverse Sort", 0, NULL, REVERSE_SORT_CHECKBOX);
-  PF_ADD_CHECKBOX("Switch Orientation", "Switch Orientation", 0, NULL, SWITCH_ORIENTAION_CHECKBOX);
+  PF_ADD_CHECKBOX("Interpolate Pixel Ranges", "Interpolate Pixel Ranges", 0, NULL, PIXEL_INTERPOLATION_CHECKBOX);
+  PF_ADD_POPUP("Sort Orientation", 2, 0, "Vertical|Horizontal", ORIENTAION_DROPDOWN);
+  PF_ADD_SLIDER("High Range Sort Limit", 1, 765, 1, 765, 50, HIGH_RANGE_SORT_LIMIT);
+  PF_ADD_SLIDER("Low Range Sort Limit", 0, 765, 0, 765, 50, LOW_RANGE_SORT_LIMIT);
+
+  PF_ADD_POPUP("Sort Method", 2, 0, "Variable Range|User-selected Range", SORT_METHOD_DROPDOWN);
   
  
   out_data->num_params = SORT_NUM_PARAMS; 
@@ -143,17 +147,11 @@ ShiftImage8 (void     *refcon,
   register ShiftInfo *siP = reinterpret_cast<ShiftInfo*>(refcon);  
   PF_Err             err  = PF_Err_NONE;
             
-  int x = siP->pixelSorter->verticalOrientation ? xL : yL;
-  int y = siP->pixelSorter->verticalOrientation ? yL : xL;
+  int x = dynamic_cast<PixelSorter*>(siP->pixelSorter)->verticalOrientation == 1 ? xL : yL;
+  int y = dynamic_cast<PixelSorter*>(siP->pixelSorter)->verticalOrientation == 1 ? yL : xL;
   
   if (siP->mapCreated) 
-  {           
-    //*inP = siP->pixelMap[xL][yL];
-    //outP->alpha = siP->pixelMap[xL][yL].alpha;
-    //outP->blue  = siP->pixelMap[xL][yL].blue;
-    //outP->green = siP->pixelMap[xL][yL].green;
-    //outP->red   = siP->pixelMap[xL][yL].red;
-    
+  { 
     *outP = siP->pixelMap[x][y].pixel;
   } 
   else 
@@ -163,13 +161,6 @@ ShiftImage8 (void     *refcon,
 
   return err;
 }
-
-
-
-
-
-
-
 
 
 
@@ -253,6 +244,7 @@ SmartRender(PF_InData*            in_data,
   AEGP_SuiteHandler  suites(in_data->pica_basicP);
   PF_EffectWorld*    input_worldP  = NULL; 
   PF_EffectWorld*    output_worldP = NULL;
+  PF_EffectWorld*    tmpWorld      = new PF_EffectWorld;
   PF_WorldSuite2*    wsP           = NULL;
   PF_PixelFormat     format        = PF_PixelFormat_INVALID;
   PF_Point           origin;
@@ -276,8 +268,6 @@ SmartRender(PF_InData*            in_data,
       kPFWorldSuiteVersion2, 
       out_data} };
 
-  
-
   if (infoP) 
   {    
     if (!infoP->no_opB) 
@@ -288,18 +278,24 @@ SmartRender(PF_InData*            in_data,
         INPUT_ID, 
         &input_worldP)));
 
+      worldSuite->PF_NewWorld(
+        in_data->effect_ref, 
+        in_data->width, 
+        in_data->height, 
+        0, PF_PixelFormat_ARGB32, 
+        tmpWorld);
+
       ERR(extra->cb->checkout_output(
         in_data->effect_ref, 
         &output_worldP));
-
+      
+      //infoP->samp_pb.area = 9;
 
       if (!err && output_worldP) 
       {        
-        infoP->ref         = in_data->effect_ref;
-        infoP->in_data     = *in_data;
-        infoP->inputCopy   = *input_worldP;
-        infoP->samp_pb.src = input_worldP;
-        
+        infoP->ref     = in_data->effect_ref;
+        infoP->in_data = *in_data;
+
         
         ERR(worldSuite->PF_GetPixelFormat(input_worldP, &format));
 
@@ -307,33 +303,31 @@ SmartRender(PF_InData*            in_data,
         origin.v = (A_short)(in_data->output_origin_y);        
          
 
+
         ERR(iterSuite->iterate_origin(
           in_data, 
           0, 
           output_worldP->height,
           input_worldP, 
-          &input_worldP->extent_hint,
+          NULL,
           &origin,
           (void*)(infoP),
           ShiftImage8,
           output_worldP));
-   
-        vector<vector<PixelStruct>> pixelMapCopy{infoP->pixelMap};
+
         infoP->mapCreated = true;
-        infoP->pixelSorter->sortPixelMap();
-              
+        dynamic_cast<PixelSorter*>(infoP->pixelSorter)->sortPixelMap();
 
         ERR(iterSuite->iterate_origin(
           in_data, 
           0, 
           output_worldP->height,
           input_worldP, 
-          &input_worldP->extent_hint,
+          NULL,
           &origin,
           (void*)(infoP),
           ShiftImage8,
           output_worldP));
-
 
         infoP->mapCreated = false;
  
@@ -373,6 +367,7 @@ SmartRender(PF_InData*            in_data,
 
 
   ERR(extra->cb->checkin_layer_pixels(in_data->effect_ref, INPUT_ID));
+  ERR(extra->cb->checkin_layer_pixels(in_data->effect_ref, INPUT_ID2));
 
   return err;
 }
@@ -384,6 +379,7 @@ SmartRender(PF_InData*            in_data,
 static PF_Err
 PreRender(PF_InData*         in_data,
           PF_OutData*        out_data,
+          PF_ParamDef        *params[],
           PF_PreRenderExtra* extra)
 {
 
@@ -393,7 +389,6 @@ PreRender(PF_InData*         in_data,
   AEGP_SuiteHandler suites(in_data->pica_basicP);
   PF_Handle         infoH = suites.HandleSuite1()->host_new_handle(sizeof(ShiftInfo));
     
-
   /*
   AEGP_LayerH currentLayer;
   AEGP_ItemH currentItem;
@@ -446,13 +441,31 @@ PreRender(PF_InData*         in_data,
     ShiftInfo *infoP = reinterpret_cast<ShiftInfo*>(
       suites.HandleSuite1()->host_lock_handle(infoH));
     
+    
+
+
     AEFX_CLR_STRUCT(*infoP);
+    AEFX_CLR_STRUCT(infoP->shiftSortButton);
+    AEFX_CLR_STRUCT(infoP->sortValueRange);
+    AEFX_CLR_STRUCT(infoP->minSortSlider);
+    AEFX_CLR_STRUCT(infoP->minSortRandomSlider);
+    AEFX_CLR_STRUCT(infoP->sortWidthSlider);
+    AEFX_CLR_STRUCT(infoP->variableSortCheckbox);
+    AEFX_CLR_STRUCT(infoP->variableSlider);
+    AEFX_CLR_STRUCT(infoP->favorDarkRangesCheckbox);
+    AEFX_CLR_STRUCT(infoP->minReverseSortSlider);
+    AEFX_CLR_STRUCT(infoP->orientationDropdown);
+    AEFX_CLR_STRUCT(infoP->iterpolatePixelCheckbox);
+    AEFX_CLR_STRUCT(infoP->highRangeSortLimit);
+    AEFX_CLR_STRUCT(infoP->lowRangeSortLimit);
+    AEFX_CLR_STRUCT(infoP->sortMethodDropbox);
+    
 
     if (infoP)
     {
       extra->output->pre_render_data = infoH;
     
-      
+
       ERR(PF_CHECKOUT_PARAM(
         in_data, 
         SORT_BUTTON,
@@ -534,15 +547,47 @@ PreRender(PF_InData*         in_data,
         in_data->time_scale,
         &infoP->reverseSortCheckbox));
 
+
       ERR(PF_CHECKOUT_PARAM(
         in_data, 
-        SWITCH_ORIENTAION_CHECKBOX,
+        PIXEL_INTERPOLATION_CHECKBOX,
         in_data->current_time,
         in_data->time_step, 
         in_data->time_scale,
-        &infoP->switchOrientationCheckbox));
-      
+        &infoP->iterpolatePixelCheckbox));
+        
+      ERR(PF_CHECKOUT_PARAM(
+        in_data, 
+        ORIENTAION_DROPDOWN,
+        in_data->current_time,
+        in_data->time_step, 
+        in_data->time_scale,
+        &infoP->orientationDropdown));
 
+      ERR(PF_CHECKOUT_PARAM(
+        in_data, 
+        HIGH_RANGE_SORT_LIMIT,
+        in_data->current_time,
+        in_data->time_step, 
+        in_data->time_scale,
+        &infoP->highRangeSortLimit));
+
+      ERR(PF_CHECKOUT_PARAM(
+        in_data, 
+        LOW_RANGE_SORT_LIMIT,
+        in_data->current_time,
+        in_data->time_step, 
+        in_data->time_scale,
+        &infoP->lowRangeSortLimit));
+
+      ERR(PF_CHECKOUT_PARAM(
+        in_data, 
+        SORT_METHOD_DROPDOWN,
+        in_data->current_time,
+        in_data->time_step, 
+        in_data->time_scale,
+        &infoP->sortMethodDropbox));
+        
       if (!err)
       {
         // Hey, we care about zero alpha
@@ -570,25 +615,34 @@ PreRender(PF_InData*         in_data,
         PF_CHECKIN_PARAM(in_data, &infoP->variableSlider);
         PF_CHECKIN_PARAM(in_data, &infoP->minReverseSortSlider);
         PF_CHECKIN_PARAM(in_data, &infoP->reverseSortCheckbox);
-        PF_CHECKIN_PARAM(in_data, &infoP->switchOrientationCheckbox);
+        PF_CHECKIN_PARAM(in_data, &infoP->orientationDropdown);
+        PF_CHECKIN_PARAM(in_data, &infoP->iterpolatePixelCheckbox);
         
         
-        infoP->in_data = *in_data;
-        infoP->pixelSorter = new ShiftInfo::PixelSorter{infoP};
+        infoP->in_data = *in_data;   
         
+        infoP->pixelSorter = new PixelSorter{infoP};
+        
+        if(PixelSorter* tmpSort = dynamic_cast<PixelSorter*>(infoP->pixelSorter)){
+          cout << "\nIt worked, yay";
+        };
+        
+                
+        
+
         if (!err)
         {
-          for (int i = 0; i < infoP->pixelSorter->pixelLines; ++i) 
+          for (int i = 0; i < dynamic_cast<PixelSorter*>(infoP->pixelSorter)->pixelLines; ++i) 
           {
             infoP->pixelMap.push_back(std::vector<PixelStruct>{});
             
-            for (int j = 0; j < infoP->pixelSorter->linePixels; ++j) 
+            for (int j = 0; j < dynamic_cast<PixelSorter*>(infoP->pixelSorter)->linePixels; ++j) 
               infoP->pixelMap[i].push_back(PixelStruct{});
           }
 
           UnionLRect(&in_result.result_rect,     &extra->output->result_rect);
           UnionLRect(&in_result.max_result_rect, &extra->output->max_result_rect);  
-
+          
           //  Notice something missing, namely the PF_CHECKIN_PARAM to balance
           //  the old-fashioned PF_CHECKOUT_PARAM, above?  
           //  For SmartFX, AE automagically checks in any params checked out 
@@ -690,7 +744,8 @@ EntryPointFunc (PF_Cmd      cmd,
         
         err = PreRender(
           in_data, 
-          out_data, 
+          out_data,
+          params,
           reinterpret_cast<PF_PreRenderExtra*>(extraP));
         
         break;
@@ -730,34 +785,66 @@ EntryPointFunc (PF_Cmd      cmd,
 
 
 
-ShiftInfo::PixelSorter::
-PixelSorter(ShiftInfo * shiftInfo)  : 
+PixelSorter::PixelSorter()
+{
+}
+
+PixelSorter::PixelSorter(ShiftInfo * shiftInfo)  : 
     minSortLength           {shiftInfo->minSortSlider.u.fd.value}, 
     sortValueRange          {shiftInfo->sortValueRange.u.fd.value},
     sortLength              {static_cast<PF_FpLong>(shiftInfo->sortValueRange.u.fd.value)},
     sortWidth               {shiftInfo->sortWidthSlider.u.fd.value},
     userMinReverseSortValue {shiftInfo->minReverseSortSlider.u.fd.value},
     minSortRandValue        {shiftInfo->minSortRandomSlider.u.fd.value},
-    userSelectedReverseSort {shiftInfo->reverseSortCheckbox.u.bd.value},
+    userSelectedReverseSort {static_cast<PF_Boolean>(shiftInfo->reverseSortCheckbox.u.bd.value)},
+    iterpolatePixelRanges   {static_cast<PF_Boolean>(shiftInfo->iterpolatePixelCheckbox.u.bd.value)},
     layerWidth              {shiftInfo->in_data.width}, 
     layerHeight             {shiftInfo->in_data.height},
     variableValue           {shiftInfo->variableSlider.u.fs_d.value},
-    userFavorsDarkRanges    {(bool)shiftInfo->favorDarkRangesCheckbox.u.bd.value},
-    userSelectedVariableSort{shiftInfo->variableSortCheckbox.u.bd.value},
-    verticalOrientation     {(bool)shiftInfo->switchOrientationCheckbox.u.bd.value},
-    shiftInfoCopy           {shiftInfo}
+    userFavorsDarkRanges    {static_cast<PF_Boolean>(shiftInfo->favorDarkRangesCheckbox.u.bd.value)},
+    userSelectedVariableSort{static_cast<PF_Boolean>(shiftInfo->variableSortCheckbox.u.bd.value)},
+    verticalOrientation     {shiftInfo->orientationDropdown.u.pd.value},
+    shiftInfoCopy           {shiftInfo},
+    sortMethodMenuChoice    {shiftInfo->sortMethodDropbox.u.pd.value},
+    highRangeLimit          {shiftInfo->highRangeSortLimit.u.fd.value},
+    lowRangeLimit           {shiftInfo->lowRangeSortLimit.u.fd.value}
+  
 {
-    pixelLines = verticalOrientation  ? layerWidth : layerHeight;
-    linePixels = verticalOrientation ? layerHeight : layerWidth;
+    pixelLines = verticalOrientation == 1 ? layerWidth : layerHeight;
+    linePixels = verticalOrientation == 1 ? layerHeight : layerWidth;
+}
+
+PixelSorter::PixelSorter(ShiftInfo& shiftInfo)
+{
+    minSortLength           = shiftInfo.minSortSlider.u.fd.value; 
+    sortValueRange          = shiftInfo.sortValueRange.u.fd.value;
+    sortLength              = static_cast<PF_FpLong>(shiftInfo.sortValueRange.u.fd.value);
+    sortWidth               = shiftInfo.sortWidthSlider.u.fd.value;
+    userMinReverseSortValue = shiftInfo.minReverseSortSlider.u.fd.value;
+    minSortRandValue        = shiftInfo.minSortRandomSlider.u.fd.value;
+    userSelectedReverseSort = static_cast<PF_Boolean>(shiftInfo.reverseSortCheckbox.u.bd.value);
+    iterpolatePixelRanges   = static_cast<PF_Boolean>(shiftInfo.iterpolatePixelCheckbox.u.bd.value);
+    layerWidth              = shiftInfo.in_data.width; 
+    layerHeight             = shiftInfo.in_data.height;
+    variableValue           = shiftInfo.variableSlider.u.fs_d.value;
+    userFavorsDarkRanges    = static_cast<PF_Boolean>(shiftInfo.favorDarkRangesCheckbox.u.bd.value);
+    userSelectedVariableSort= static_cast<PF_Boolean>(shiftInfo.variableSortCheckbox.u.bd.value);
+    verticalOrientation     = shiftInfo.orientationDropdown.u.pd.value;
+    shiftInfoCopy           = &shiftInfo;
+    pixelLines = verticalOrientation == 1 ? layerWidth : layerHeight;
+    linePixels = verticalOrientation == 1 ? layerHeight : layerWidth;
+}
+
+void PixelSorter::operator=(ShiftInfo & shiftInfo)
+{
+  *this = shiftInfo;
 }
 
 
 
 
 
-
-
-ShiftInfo::PixelSorter::~PixelSorter()
+PixelSorter::~PixelSorter()
 {
   delete this;
 }
@@ -766,10 +853,10 @@ ShiftInfo::PixelSorter::~PixelSorter()
 
 
 
-inline void ShiftInfo::PixelSorter::
+inline void PixelSorter::
 storeRowIters(iteratorVector & rowIters)
 {
-  for(int j = lineCounter; j < (lineCounter+sortWidth) && j < pixelLines-1; ++j)
+  for(auto j = lineCounter; j < (lineCounter+sortWidth) && j < pixelLines-1; ++j)
     rowIters.push_back(shiftInfoCopy->pixelMap[j].begin()+pixelCounter);
 }
 
@@ -777,7 +864,7 @@ storeRowIters(iteratorVector & rowIters)
 
                                                                  
 
-inline void ShiftInfo::PixelSorter::
+inline void PixelSorter::
 storeBeginRowIters()
 {
   storeRowIters(rowBeginIters);
@@ -788,7 +875,7 @@ storeBeginRowIters()
 
 
 
-inline void ShiftInfo::PixelSorter::
+inline void PixelSorter::
 storeEndRowIters()
 {
   storeRowIters(rowEndIters);
@@ -798,7 +885,7 @@ storeEndRowIters()
 
 
 
-inline void ShiftInfo::PixelSorter::
+inline void PixelSorter::
 getSortLength()
 {
   sortLength = sortValueRange;
@@ -816,14 +903,14 @@ getSortLength()
 
 
 
-inline void ShiftInfo::PixelSorter::
+inline void PixelSorter::
 getLineWidthPixelAverage()
 {
   columnAvg = 0;
-  int columnWidthSpan = lineCounter + sortWidth;
+  auto columnWidthSpan = lineCounter + sortWidth;
   
-  for(int i = lineCounter; i < columnWidthSpan && i < pixelLines-1; ++i)  
-    columnAvg += static_cast<int>(shiftInfoCopy->pixelMap[i][pixelCounter].pixelValue);
+  for(auto i = lineCounter; i < columnWidthSpan && i < pixelLines-1; ++i)  
+    columnAvg += static_cast<PF_Fixed>(shiftInfoCopy->pixelMap[i][pixelCounter].pixelValue);
   
   columnAvg /= sortWidth;
 }
@@ -833,7 +920,7 @@ getLineWidthPixelAverage()
 
 
 
-void ShiftInfo::PixelSorter::
+void PixelSorter::
 sortPixelMap()
 {
   for (lineCounter=0; lineCounter<pixelLines; lineCounter+=sortWidth) 
@@ -866,7 +953,7 @@ sortPixelMap()
 
 
 
-inline void ShiftInfo::PixelSorter::resetSortingVariables()
+inline void PixelSorter::resetSortingVariables()
 {
   while (!mostQueue.empty()) mostQueue.pop();          
   while (!leastQueue.empty()) leastQueue.pop();
@@ -886,7 +973,7 @@ inline void ShiftInfo::PixelSorter::resetSortingVariables()
 
 
 
-inline void ShiftInfo::PixelSorter::reverseSortIfTrue(bool needToReverse, int index)
+inline void PixelSorter::reverseSortIfTrue(PF_Boolean needToReverse, PF_Fixed index)
 {
   if (needToReverse)
     reverse(rowBeginIters[index], rowEndIters[index]);
@@ -896,14 +983,17 @@ inline void ShiftInfo::PixelSorter::reverseSortIfTrue(bool needToReverse, int in
 
 
 
-inline bool ShiftInfo::PixelSorter::pixelDistanceIsLongEnoughToSort()
+inline bool PixelSorter::pixelDistanceIsLongEnoughToSort()
 {
   getSortLength();
   getUserSetMinLength();
 
-  if (((currentPixelValueDistance >= sortLength) && 
-        (currPixDistance>userMinLength))||
-          (pixelCounter==linePixels-1))
+  if (sortMethodMenuChoice==USER_RANGE && mostQueue.top() >= highRangeLimit)
+  {
+    return true;  
+  }
+
+  else if (((currentPixelValueDistance >= sortLength) && (currPixDistance>userMinLength))||(pixelCounter==linePixels-1)) 
   {
       
     lengthIsShortEnoughForFlip = currPixDistance < userMinReverseSortValue ? true:false; 
@@ -920,9 +1010,13 @@ inline bool ShiftInfo::PixelSorter::pixelDistanceIsLongEnoughToSort()
 
 
 
-inline void ShiftInfo::PixelSorter::sortPixelSegments()
-{
-  for (int h = 0; h < rowBeginIters.size(); ++h)
+inline void PixelSorter::sortPixelSegments()
+{  
+  if (iterpolatePixelRanges) 
+    getInterpolationValues();
+
+
+  for (auto h = 0; h < rowBeginIters.size(); ++h)
   {
     sort(rowBeginIters[h], rowEndIters[h], sortFunc);        
     reverseSortIfTrue(userSelectedReverseSort||lengthIsShortEnoughForFlip,h);
@@ -933,12 +1027,12 @@ inline void ShiftInfo::PixelSorter::sortPixelSegments()
 
 
 
-inline void ShiftInfo::PixelSorter::getAndStorePixelValue()
+inline void PixelSorter::getAndStorePixelValue()
 {
   getLineWidthPixelAverage();
   mostQueue.push(columnAvg);
   leastQueue.push(columnAvg);
-  currentPixelValueDistance = static_cast<int>(mostQueue.top()-leastQueue.top());
+  currentPixelValueDistance = static_cast<PF_Fixed>(mostQueue.top()-leastQueue.top());
 }
 
 
@@ -946,16 +1040,36 @@ inline void ShiftInfo::PixelSorter::getAndStorePixelValue()
 
 
 
-inline void ShiftInfo::PixelSorter::getUserSetMinLength()
+inline void PixelSorter::getUserSetMinLength()
 {
   userMinLength = minSortRandValue;
   if (minSortRandValue >= 2) 
   {
     userMinLength += minSortLength; 
     userMinLength += random() % (minSortRandValue/2) - minSortRandValue;
-    userMinLength *= static_cast<int>((MAX_RBG_VALUE-columnAvg)/MAX_RBG_VALUE) + 1;
+    userMinLength *= static_cast<PF_Fixed>((MAX_RBG_VALUE-columnAvg)/MAX_RBG_VALUE) + 1;
   }
 }
 
+
+
+
+
+
+inline void PixelSorter::getInterpolationValues()
+{
+  PF_FpLong iterpolationRange = mostQueue.top() - leastQueue.top();
+  PF_FpLong iterpolationStep = iterpolationRange/currPixDistance;
+  
+  for (auto h = 0; h < rowBeginIters.size(); ++h, iterpolationStep *= 2)
+  {
+    for (auto j = rowBeginIters[h]; j!=rowEndIters[h]; ++j)
+    {
+       j->pixel.red   = static_cast<A_u_char>(iterpolationRange + (iterpolationStep/3));
+       j->pixel.green = static_cast<A_u_char>(iterpolationRange + (iterpolationStep/3));
+       j->pixel.blue  = static_cast<A_u_char>(iterpolationRange + (iterpolationStep/3));
+    }
+  }
+}
 
 

@@ -35,6 +35,7 @@
 #include "Smart_Utils.h"
 #include "AEGP_SuiteHandler.h"
 #include "AEFX_SuiteHelper.h"
+#include <iostream>
 #include <vector>
 #include <random>
 #include <utility>
@@ -70,13 +71,18 @@ enum {
   FAVOR_DARK_RANGES,
   MIN_REVERSE_DIST_SLIDER,
   REVERSE_SORT_CHECKBOX,
-  SWITCH_ORIENTAION_CHECKBOX,
+  PIXEL_INTERPOLATION_CHECKBOX,
+  ORIENTAION_DROPDOWN,
+  HIGH_RANGE_SORT_LIMIT,
+  LOW_RANGE_SORT_LIMIT,
+  SORT_METHOD_DROPDOWN,
 	SORT_NUM_PARAMS
 };
 
 enum {
   BUTTON_ID=1,
-  INPUT_ID
+  INPUT_ID,
+  INPUT_ID2
 };
 
 
@@ -97,9 +103,23 @@ struct PixelStruct{
 
 
 
-class ShiftInfo{
+
+class Base { 
 
   public:
+
+  virtual ~Base(){} 
+};
+
+
+
+
+class ShiftInfo : public Base 
+{
+
+  public:
+
+  ShiftInfo(){};
 
   PF_ParamDef    sortValueRange; 
   PF_ParamDef    minSortSlider; 
@@ -111,7 +131,11 @@ class ShiftInfo{
   PF_ParamDef    favorDarkRangesCheckbox;
   PF_ParamDef    minReverseSortSlider;
   PF_ParamDef    reverseSortCheckbox;
-  PF_ParamDef    switchOrientationCheckbox;
+  PF_ParamDef    orientationDropdown;
+  PF_ParamDef    iterpolatePixelCheckbox;
+  PF_ParamDef    highRangeSortLimit;
+  PF_ParamDef    lowRangeSortLimit;
+  PF_ParamDef    sortMethodDropbox;
 
   PF_EffectWorld originalCopy;
   PF_EffectWorld inputCopy;
@@ -119,87 +143,104 @@ class ShiftInfo{
 	PF_SampPB  	   samp_pb;
 	PF_InData 	   in_data;
 	PF_Boolean	   no_opB;
-  bool           mapCreated{false};
+  PF_Boolean     mapCreated{0};
 
   vector<vector<PixelStruct>> pixelMap; 
-  
+  Base* pixelSorter;
 
 
 
-  class PixelSorter
-  {  
-    public:
-
-    PixelSorter(ShiftInfo*);
-    ~PixelSorter();
-
-  
-    using highestPixelValueQueue = priority_queue<PF_FpLong, vector<PF_FpLong>, std::less<PF_FpLong>>;
-    using lowestPixelValueQueue  = priority_queue<PF_FpLong, vector<PF_FpLong>, std::greater<PF_FpLong>>;
-    using iteratorVector         = vector<vector<PixelStruct>::iterator>;
-
-    PF_ParamValue  userSelectedReverseSort;
-    PF_ParamValue  userSelectedVariableSort;
-    ShiftInfo*     shiftInfoCopy;
-    random_device  random;
-  
-    PF_FpLong minSortLengthRand{0};
-    PF_FpLong pixValueAverage{0};
-    PF_FpLong pixAvg{0};
-    PF_FpLong variableValue;
-    PF_FpLong sortLength;
-    
-    bool   lengthIsShortEnoughForFlip{false};
-    bool   userFavorsDarkRanges{false};
-    
-    int    minSortLength;
-    int    sortValueRange;
-    int    sortWidth;
-    int    userMinReverseSortValue;
-    int    minSortRandValue;
-    int    layerWidth;
-    int    layerHeight;
-    int    pixelLines;
-    int    linePixels;
-    int    currentPixelValueDistance{0};
-    int    columnAvg;
-    int    lineCounter{0};
-    int    pixelCounter{0};
-    int    currPixDistance{0};
-    int    userMinLength;
-    bool   verticalOrientation;
-
-    highestPixelValueQueue mostQueue{};
-    lowestPixelValueQueue  leastQueue{};
-    iteratorVector         rowBeginIters;
-    iteratorVector         rowEndIters;
-
-    inline void storeRowIters(iteratorVector&);  
-    inline void storeBeginRowIters();  
-    inline void storeEndRowIters();  
-    inline void getSortLength();    
-    inline void getLineWidthPixelAverage();
-    inline void sortPixelMap();
-    inline void resetSortingVariables();
-    inline void reverseSortIfTrue(bool,int);
-    inline bool pixelDistanceIsLongEnoughToSort();
-    inline void sortPixelSegments();
-    inline void getAndStorePixelValue();
-    inline void getUserSetMinLength();
-    
-    function<bool(const PixelStruct&, const PixelStruct&)> sortFunc = 
-      [](const PixelStruct& left , const PixelStruct& right)
-      {
-        return left.pixelValue < right.pixelValue;
-      };
-
-    
-  
-  }* pixelSorter;
 
 
 };
 
+class PixelSorter : public Base 
+{  
+  public:
+
+  PixelSorter();
+  PixelSorter(ShiftInfo*);
+  PixelSorter(ShiftInfo& shiftInfo);
+  void operator =(ShiftInfo& shiftInfo);
+  ~PixelSorter();
+
+  enum SortOrientations
+  {
+    VERTICAL_ORIENTATION=1,
+    HORIZONTAL_ORIENTATION
+  };
+
+  enum SortMethods
+  {
+    SORT_BY_VARIABLE_RANGE=1,
+    USER_RANGE
+  };
+  
+  using highestPixelValueQueue = priority_queue<PF_Fixed,vector<PF_Fixed>,less<PF_Fixed>>;
+  using lowestPixelValueQueue  = priority_queue<PF_Fixed,vector<PF_Fixed>,greater<PF_Fixed>>;
+  using iteratorVector         = vector<vector<PixelStruct>::iterator>;
+
+  PF_ParamValue  userSelectedReverseSort;
+  PF_ParamValue  userSelectedVariableSort;
+  ShiftInfo*     shiftInfoCopy;
+  random_device  random;
+  
+  PF_FpLong  minSortLengthRand{0};
+  PF_FpLong  pixValueAverage{0};
+  PF_FpLong  pixAvg{0};
+  PF_FpLong  variableValue;
+  PF_FpLong  sortLength;
+    
+  PF_Boolean  lengthIsShortEnoughForFlip{0};
+  PF_Boolean  userFavorsDarkRanges{0};
+    
+  PF_Fixed    minSortLength;
+  PF_Fixed    sortValueRange;
+  PF_Fixed    sortWidth;
+  PF_Fixed    userMinReverseSortValue;
+  PF_Fixed    minSortRandValue;
+  PF_Fixed    layerWidth;
+  PF_Fixed    layerHeight;
+  PF_Fixed    pixelLines;
+  PF_Fixed    linePixels;
+  PF_Fixed    currentPixelValueDistance{0};
+  PF_Fixed    columnAvg;
+  PF_Fixed    lineCounter{0};
+  PF_Fixed    pixelCounter{0};
+  PF_Fixed    currPixDistance{0};
+  PF_Fixed    userMinLength;
+  PF_Fixed    verticalOrientation;
+  PF_Fixed    highRangeLimit;
+  PF_Fixed    lowRangeLimit;
+  PF_Fixed    sortMethodMenuChoice;
+  PF_Boolean  iterpolatePixelRanges;
+
+  highestPixelValueQueue mostQueue{};
+  lowestPixelValueQueue  leastQueue{};
+  iteratorVector         rowBeginIters;
+  iteratorVector         rowEndIters;
+
+  inline void storeRowIters(iteratorVector&);  
+  inline void storeBeginRowIters();  
+  inline void storeEndRowIters();  
+  inline void getSortLength();    
+  inline void getLineWidthPixelAverage();
+  inline void sortPixelMap();
+  inline void resetSortingVariables();
+  inline void reverseSortIfTrue(PF_Boolean,PF_Fixed);
+  inline bool pixelDistanceIsLongEnoughToSort();
+  inline void sortPixelSegments();
+  inline void getAndStorePixelValue();
+  inline void getUserSetMinLength();
+  inline void getInterpolationValues();
+    
+  function<bool(const PixelStruct&, const PixelStruct&)> sortFunc = 
+    [](const PixelStruct& left , const PixelStruct& right)
+    {
+      return left.pixelValue < right.pixelValue;
+    };
+
+};
 
 
 
