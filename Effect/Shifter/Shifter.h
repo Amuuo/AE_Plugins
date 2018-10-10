@@ -99,6 +99,7 @@ struct PixelStruct{
 
   PF_FpLong pixelValue;
   PF_Pixel  pixel;
+  PF_Pixel* avgValuePtr;
 };
 
 
@@ -214,6 +215,7 @@ class PixelSorter : public Base
   PF_Fixed    highRangeLimit;
   PF_Fixed    lowRangeLimit;
   PF_Fixed    sortMethodMenuChoice;
+  PF_Fixed    startingRGBValue;
   PF_Boolean  iterpolatePixelRanges;
 
   highestPixelValueQueue mostQueue{};
