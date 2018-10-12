@@ -42,6 +42,7 @@
 #include <algorithm>
 #include <queue>
 #include <functional>
+#include <map>
 
 using namespace std;
 
@@ -60,27 +61,35 @@ using namespace std;
 #define MAX_RBG_VALUE  765.0f
 
 enum {
-	SORT_INPUT = 0,	// default input layer 
-  SORT_BUTTON,
+// default input layer
+  SORT_INPUT=0,
+  MAIN_GROUP_START,
+  SORT_METHOD_DROPDOWN,
+  ORIENTAION_DROPDOWN,
+  REVERSE_SORT_CHECKBOX,
   SORT_VALUE_RANGE,
-  MIN_SORT_LENGTH_SLIDER,
-  MIN_SORT_RAND_SLIDER,
   SORT_WIDTH_SLIDER,
+  MAIN_GROUP_END,
+  VARIABLE_SORT_GROUP_START,
   VARIABLE_SORT_CHECKBOX,
   VARIABLE_SLIDER,
   FAVOR_DARK_RANGES,
-  MIN_REVERSE_DIST_SLIDER,
-  REVERSE_SORT_CHECKBOX,
-  PIXEL_INTERPOLATION_CHECKBOX,
-  ORIENTAION_DROPDOWN,
+  VARIABLE_SORT_GROUP_END,
+  MISC_GROUP_END,
+  MANUAL_SORT_RANGE_GROUP_START,
   HIGH_RANGE_SORT_LIMIT,
   LOW_RANGE_SORT_LIMIT,
-  SORT_METHOD_DROPDOWN,
+  MANUAL_SORT_RANGE_GROUP_END,
+  MISC_GROUP_START,
+  MIN_SORT_LENGTH_SLIDER,
+  MIN_SORT_RAND_SLIDER,
+  MIN_REVERSE_DIST_SLIDER,
+  PIXEL_INTERPOLATION_CHECKBOX,
 	SORT_NUM_PARAMS
 };
 
-enum {
-  BUTTON_ID=1,
+enum {  
+  BUTTON_ID=0,
   INPUT_ID,
   INPUT_ID2
 };
@@ -119,39 +128,42 @@ class ShiftInfo : public Base
 {
 
   public:
+  
+    ShiftInfo(){}
 
-  ShiftInfo(){};
+    PF_ParamDef    params[SORT_NUM_PARAMS];
+    PF_EffectWorld originalCopyP{};
+    PF_EffectWorld inputCopy{};
+    PF_ProgPtr	   ref{};
+    PF_SampPB  	   samp_pb{};
+    PF_InData 	   in_data{};
+    PF_Boolean	   no_opB{};
+    PF_Boolean     mapCreated{0};
 
-  PF_ParamDef    sortValueRange; 
-  PF_ParamDef    minSortSlider; 
-  PF_ParamDef    minSortRandomSlider;
-  PF_ParamDef    shiftSortButton;
-  PF_ParamDef    sortWidthSlider;
-  PF_ParamDef    variableSortCheckbox;
-  PF_ParamDef    variableSlider;
-  PF_ParamDef    favorDarkRangesCheckbox;
-  PF_ParamDef    minReverseSortSlider;
-  PF_ParamDef    reverseSortCheckbox;
-  PF_ParamDef    orientationDropdown;
-  PF_ParamDef    iterpolatePixelCheckbox;
-  PF_ParamDef    highRangeSortLimit;
-  PF_ParamDef    lowRangeSortLimit;
-  PF_ParamDef    sortMethodDropbox;
+    vector<vector<PixelStruct>> pixelMap; 
+    Base* pixelSorter;
+};
 
-  PF_EffectWorld originalCopy;
-  PF_EffectWorld inputCopy;
-	PF_ProgPtr	   ref;
-	PF_SampPB  	   samp_pb;
-	PF_InData 	   in_data;
-	PF_Boolean	   no_opB;
-  PF_Boolean     mapCreated{0};
-
-  vector<vector<PixelStruct>> pixelMap; 
-  Base* pixelSorter;
-
-
-
-
+struct ParamValues
+{
+  ParamValues();
+  ParamValues(ShiftInfo*);
+  
+  
+  PF_FpLong      minSortLength;
+  PF_FpLong      minSortRandValue;
+  PF_Fixed       sortWidth;
+  PF_ParamValue  selectedVariableSort;
+  PF_FpLong      variableValue;
+  PF_FpLong      sortValueRange;
+  PF_ParamValue  favorsDarkRanges{0};
+  PF_FpLong      minReverseSortValue;
+  PF_ParamValue  selectedReverseSort;
+  PF_ParamValue  iterpolatePixelRanges;
+  PF_ParamValue  sortMethodMenuChoice;
+  PF_ParamValue  orientation;
+  PF_FpLong      highRangeLimit;
+  PF_FpLong      lowRangeLimit;
 
 };
 
@@ -159,105 +171,78 @@ class PixelSorter : public Base
 {  
   public:
 
-  PixelSorter();
-  PixelSorter(ShiftInfo*);
-  PixelSorter(ShiftInfo& shiftInfo);
-  void operator =(ShiftInfo& shiftInfo);
-  ~PixelSorter();
+    PixelSorter();
+    PixelSorter(ShiftInfo*, ParamValues);
 
-  enum SortOrientations
-  {
-    VERTICAL_ORIENTATION=1,
-    HORIZONTAL_ORIENTATION
-  };
+    void operator =(ShiftInfo& shiftInfo);
+    ~PixelSorter();
 
-  enum SortMethods
-  {
-    SORT_BY_VARIABLE_RANGE=1,
-    USER_RANGE_HIGH,
-    USER_RANGE_LOW
-  };
-  
-  using highestPixelValueQueue = priority_queue<PF_Fixed,vector<PF_Fixed>,less<PF_Fixed>>;
-  using lowestPixelValueQueue  = priority_queue<PF_Fixed,vector<PF_Fixed>,greater<PF_Fixed>>;
-  using iteratorVector         = vector<vector<PixelStruct>::iterator>;
-
-  PF_ParamValue  userSelectedReverseSort;
-  PF_ParamValue  userSelectedVariableSort;
-  ShiftInfo*     shiftInfoCopy;
-  random_device  random;
-  
-  PF_FpLong  minSortLengthRand{0};
-  PF_FpLong  pixValueAverage{0};
-  PF_FpLong  pixAvg{0};
-  PF_FpLong  variableValue;
-  PF_FpLong  sortLength;
+    using highestPixelValueQueue = priority_queue<PF_FpLong,vector<PF_FpLong>,less<PF_FpLong>>;
+    using lowestPixelValueQueue  = priority_queue<PF_FpLong,vector<PF_FpLong>,greater<PF_FpLong>>;
+    using iteratorVector         = vector<vector<PixelStruct>::iterator>;
+ 
     
-  PF_Boolean  lengthIsShortEnoughForFlip{0};
-  PF_Boolean  userFavorsDarkRanges{0};
-    
-  PF_Fixed    minSortLength;
-  PF_Fixed    sortValueRange;
-  PF_Fixed    sortWidth;
-  PF_Fixed    userMinReverseSortValue;
-  PF_Fixed    minSortRandValue;
-  PF_Fixed    layerWidth;
-  PF_Fixed    layerHeight;
-  PF_Fixed    pixelLines;
-  PF_Fixed    linePixels;
-  PF_Fixed    currentPixelValueDistance{0};
-  PF_Fixed    columnAvg;
-  PF_Fixed    lineCounter{0};
-  PF_Fixed    pixelCounter{0};
-  PF_Fixed    currPixDistance{0};
-  PF_Fixed    userMinLength;
-  PF_Fixed    verticalOrientation;
-  PF_Fixed    highRangeLimit;
-  PF_Fixed    lowRangeLimit;
-  PF_Fixed    sortMethodMenuChoice;
-  PF_Fixed    startingRGBValue;
-  PF_Boolean  iterpolatePixelRanges;
-
-  highestPixelValueQueue mostQueue{};
-  lowestPixelValueQueue  leastQueue{};
-  iteratorVector         rowBeginIters;
-  iteratorVector         rowEndIters;
-
-  inline void storeRowIters(iteratorVector&);  
-  inline void storeBeginRowIters();  
-  inline void storeEndRowIters();  
-  inline void getSortLength();    
-  inline void getLineWidthPixelAverage();
-  inline void sortPixelMap();
-  inline void resetSortingVariables();
-  inline void reverseSortIfTrue(PF_Boolean,PF_Fixed);
-  inline bool pixelDistanceIsLongEnoughToSort();
-  inline void sortPixelSegments();
-  inline void getAndStorePixelValue();
-  inline void getUserSetMinLength();
-  inline void getInterpolationValues();
-    
-  function<bool(const PixelStruct&, const PixelStruct&)> sortFunc = 
-    [](const PixelStruct& left , const PixelStruct& right)
+    enum SortOrientations
     {
-      return left.pixelValue < right.pixelValue;
+      VERTICAL_ORIENTATION=1,
+      HORIZONTAL_ORIENTATION
     };
 
+    enum SortMethods
+    {
+      USER_MAIN_SORT=1,
+      USER_MANUAL_SORT,
+      USER_RANGE_LOW
+    };
+  
+
+    random_device random{};
+    ParamValues   param{};
+    ShiftInfo*    shiftInfoCopy{};
+  
+    PF_FpLong   minSortLengthRand{};
+    PF_FpLong   pixValueAverage{};
+    PF_FpLong   pixAvg{};
+    PF_FpLong   sortLength{};
+    PF_FpLong   minLength{};  
+    PF_Boolean  lengthIsShortEnoughForFlip{};
+  
+    PF_Fixed    pixelLines{};
+    PF_Fixed    linePixels{};
+    PF_Fixed    currentPixelValueDistance{};
+    PF_FpLong   columnAvg{};
+    PF_Fixed    lineCounter{};
+    PF_Fixed    pixelCounter{};
+    PF_Fixed    currPixDistance{};
+    PF_FpLong   startingRGBValue{};
+
+
+
+    highestPixelValueQueue mostQueue{};
+    lowestPixelValueQueue  leastQueue{};
+    iteratorVector         rowBeginIters{};
+    iteratorVector         rowEndIters{};
+
+    inline void storeRowIters(iteratorVector&);  
+    inline void storeBeginRowIters();  
+    inline void storeEndRowIters();  
+    inline void getSortLength();    
+    inline void getLineWidthPixelAverage();
+    inline void sortPixelMap();
+    inline void resetSortingVariables();
+    inline void reverseSortIfTrue(PF_Boolean,PF_Fixed);
+    inline bool pixelDistanceIsLongEnoughToSort();
+    inline void sortPixelSegments();
+    inline void getAndStorePixelValue();
+    inline void getUserSetMinLength();
+    
+    function<bool(const PixelStruct&, const PixelStruct&)> sortFunc = 
+      [](const PixelStruct& left , const PixelStruct& right)
+      {
+        return left.pixelValue < right.pixelValue;
+      };
+
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
