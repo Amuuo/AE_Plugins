@@ -104,6 +104,7 @@ ParamsSetup (PF_InData    *in_data,
   
   PF_ADD_TOPIC("Main", MAIN_GROUP_START);
   PF_ADD_POPUP("Sort Method", 2, 0, "Basic Sort|Manual Sort", SORT_METHOD_DROPDOWN);
+  PF_ADD_POPUP("Sort By:", 2, 0, "Luminosity|Individual RGB", SORT_BY_DROPDOWN);
   PF_ADD_POPUP("Sort Orientation", 2, 0, "Vertical|Horizontal", ORIENTAION_DROPDOWN);  
   PF_ADD_CHECKBOX("Invert Sort", "Enabled", 0, NULL, REVERSE_SORT_CHECKBOX); 
   PF_ADD_FLOAT_SLIDER("Sort Value Range", 1, 765, 1, 765, 0, 100, PF_Precision_INTEGER, NULL, NULL, SORT_VALUE_RANGE);  
@@ -112,7 +113,7 @@ ParamsSetup (PF_InData    *in_data,
 
   PF_ADD_TOPIC("Variable Sort", VARIABLE_SORT_GROUP_START);  
   PF_ADD_CHECKBOX("Variable Sort", "Enabled", 0, NULL, VARIABLE_SORT_CHECKBOX);    
-  PF_ADD_FLOAT_SLIDER("Variable Range", 1, 3, 1, 3, NULL, 1, PF_Precision_HUNDREDTHS, NULL, NULL, VARIABLE_SLIDER);    
+  PF_ADD_FLOAT_SLIDER("Variable Range", 0, 3, 0, 3, NULL, 1, PF_Precision_HUNDREDTHS, NULL, NULL, VARIABLE_SLIDER);    
   PF_ADD_CHECKBOX("Favor Dark Ranges", "Enabled", 0, NULL, FAVOR_DARK_RANGES); 
   PF_END_TOPIC(VARIABLE_SORT_GROUP_END); 
   
@@ -332,8 +333,7 @@ SmartRender(PF_InData*            in_data,
     {
       ERR(PF_COPY(&infoP->inputCopy, output_worldP, NULL, NULL));
     }
-    
-                 
+           
     suites.HandleSuite1()->host_unlock_handle(
       reinterpret_cast<PF_Handle>(
         extra->input->pre_render_data));
@@ -361,6 +361,7 @@ SmartRender(PF_InData*            in_data,
   infoP->pixelMap.clear();
 
   ERR(extra->cb->checkin_layer_pixels(in_data->effect_ref, SORT_INPUT));
+  
 
   return err;
 }
@@ -408,7 +409,7 @@ PreRender(PF_InData*         in_data,
           SORT_INPUT,
           &req,
           in_data->current_time,
-          in_data->time_step,
+          in_data->local_time_step,
           in_data->time_scale,
           &in_result));
         
@@ -438,7 +439,10 @@ PreRender(PF_InData*         in_data,
           //  during PF_Cmd_SMART_PRE_RENDER, new or old-fashioned.
         }
       }
-      
+      for (int i = 0; i < SORT_NUM_PARAMS; ++i)
+      {
+        PF_CHECKIN_PARAM(in_data, &infoP->params[i]);
+      }
       suites.HandleSuite1()->host_unlock_handle(infoH);
     } 
     else
@@ -553,7 +557,9 @@ ParamValues::ParamValues(ShiftInfo* shiftInfo) :
   favorsDarkRanges      {shiftInfo->params[FAVOR_DARK_RANGES].u.bd.value},
   selectedVariableSort  {shiftInfo->params[VARIABLE_SORT_CHECKBOX].u.bd.value},
   sortMethodMenuChoice  {shiftInfo->params[SORT_METHOD_DROPDOWN].u.pd.value},
-  orientation           {shiftInfo->params[ORIENTAION_DROPDOWN].u.pd.value}
+  orientation           {shiftInfo->params[ORIENTAION_DROPDOWN].u.pd.value},
+  sortByMenuChoice      {shiftInfo->params[SORT_BY_DROPDOWN].u.pd.value}
+  
 {
 
 }
@@ -576,24 +582,17 @@ PixelSorter::~PixelSorter()
 
 
 
-
-inline void PixelSorter::
-storeRowIters(iteratorVector & rowIters)
-{
-  for(auto j = lineCounter; j < (lineCounter + param.sortWidth) && j < pixelLines-1; ++j)
-  {
-    rowIters.push_back(shiftInfoCopy->pixelMap[j].begin()+pixelCounter);
-  }
-}
-
-
-
                                                                  
 
 inline void PixelSorter::
 storeBeginRowIters()
-{
-  storeRowIters(rowBeginIters);
+{ 
+  for (PF_Fixed j = lineCounter; j < (lineCounter + param.sortWidth) && j < pixelLines - 1; ++j) 
+  { 
+    current_segment.beginItems.push_back(
+      sortSegment::BeginItems{
+        (shiftInfoCopy->pixelMap[j].begin()+pixelCounter), j, pixelCounter});     
+  }
 }
 
 
@@ -603,8 +602,13 @@ storeBeginRowIters()
 
 inline void PixelSorter::
 storeEndRowIters()
-{
-  storeRowIters(rowEndIters);
+{  
+  for (PF_Fixed j = lineCounter; j < (lineCounter + param.sortWidth) && j < pixelLines - 1; ++j) 
+  { 
+    current_segment.endItems.push_back(
+      sortSegment::EndItems{
+        (shiftInfoCopy->pixelMap[j].begin()+pixelCounter), j, pixelCounter});     
+  }  
 }
 
 
@@ -621,13 +625,13 @@ getSortLength()
     if(param.favorsDarkRanges)
     {
       sortLength = (sortLength/4) * 
-        pow((abs(leastQueue.top()-MAX_RBG_VALUE)/MAX_RBG_VALUE+1), 
+        pow((abs(current_segment.luminosity_sort.low_value-MAX_RBG_VALUE)/MAX_RBG_VALUE+1), 
             2+(param.variableValue-1));
     }
     else
     {
       sortLength = (sortLength/4) * 
-        pow((mostQueue.top()/MAX_RBG_VALUE+1), 
+        pow((current_segment.luminosity_sort.high_value/MAX_RBG_VALUE+1), 
             2+(param.variableValue-1));
     }
   }
@@ -665,6 +669,54 @@ getLineWidthPixelAverage()
 
 
 
+inline void PixelSorter::
+getLineWidthColorAverage()
+{
+  auto columnWidthSpan = lineCounter+param.sortWidth;  
+  
+  PF_FpLong r_avg; 
+  PF_FpLong g_avg; 
+  PF_FpLong b_avg;
+
+
+
+  for (auto i = lineCounter; i<columnAvg && i<pixelLines-1; ++i)
+  {
+    r_avg += shiftInfoCopy->pixelMap[i][pixelCounter].pixel.red;
+    g_avg += shiftInfoCopy->pixelMap[i][pixelCounter].pixel.green;
+    b_avg += shiftInfoCopy->pixelMap[i][pixelCounter].pixel.blue;
+  }
+  r_avg /= param.sortWidth;
+  g_avg /= param.sortWidth;
+  b_avg /= param.sortWidth;
+
+  
+
+
+  if (r_avg>current_segment.rgb_sort.high_value.red)  
+    current_segment.rgb_sort.high_value.red = r_avg;
+  
+  if (g_avg>current_segment.rgb_sort.high_value.green)  
+    current_segment.rgb_sort.high_value.green = g_avg;
+  
+  if (b_avg>current_segment.rgb_sort.high_value.blue)
+    current_segment.rgb_sort.high_value.blue = b_avg;
+
+
+  if (r_avg<current_segment.rgb_sort.high_value.red)
+    current_segment.rgb_sort.high_value.red = r_avg;
+  
+  if (g_avg<current_segment.rgb_sort.high_value.green)
+    current_segment.rgb_sort.high_value.green = g_avg;
+  
+  if (b_avg<current_segment.rgb_sort.high_value.blue)
+    current_segment.rgb_sort.high_value.blue = b_avg;
+
+  
+}
+
+
+
 
 
 void PixelSorter::
@@ -678,11 +730,12 @@ sortPixelMap()
     storeBeginRowIters();
     for (pixelCounter=0; pixelCounter<linePixels; ++pixelCounter, ++currPixDistance) 
     {   
-      if (mostQueue.empty()) 
+      if (!current_segment.isEmpty) 
       {
         resetSortingVariables();
         storeBeginRowIters();                
-        getAndStorePixelValue();        
+        getAndStorePixelValue();  
+        current_segment.isEmpty = false;
       }
       if (pixelDistanceIsLongEnoughToSort()) 
       {                                        
@@ -706,19 +759,10 @@ sortPixelMap()
 
 inline void PixelSorter::resetSortingVariables()
 {
-  while (!mostQueue.empty())
-  {
-    mostQueue.pop();            
-  }
-  while (!leastQueue.empty()) 
-  {
-    leastQueue.pop();
-  }
-          
+
+  current_segment.reset();
   startingRGBValue = 0;
-  currPixDistance = 0;
-  rowBeginIters.clear();
-  rowEndIters.clear();
+  currPixDistance = 0;  
   pixValueAverage = 0;
   columnAvg = 0;
   lengthIsShortEnoughForFlip = false;
@@ -734,7 +778,7 @@ inline void PixelSorter::resetSortingVariables()
 inline void PixelSorter::reverseSortIfTrue(PF_Boolean needToReverse, PF_Fixed index)
 {
   if (needToReverse)
-    reverse(rowBeginIters[index], rowEndIters[index]);
+    reverse(current_segment.beginItems[index], current_segment.endItems[index]);
 }
 
 
@@ -746,12 +790,22 @@ inline bool PixelSorter::pixelDistanceIsLongEnoughToSort()
   getSortLength();
   getUserSetMinLength();
 
-  switch (param.sortMethodMenuChoice){
+  switch (param.sortByMenuChoice)
+  {
+    case SORT_BY_LUMINOSITY:
+      break;
 
+    case SORT_BY_RGB:
+      break;
+  }
+
+
+  switch (param.sortMethodMenuChoice)
+  {
     case USER_MANUAL_SORT:
   
-      if(mostQueue.top()>=param.highRangeLimit && 
-          leastQueue.top()<=param.lowRangeLimit)
+      if(current_segment.luminosity_sort.high_value>=param.highRangeLimit && 
+          current_segment.luminosity_sort.high_value<=param.lowRangeLimit)
       {
         if (currentPixelValueDistance>=sortLength || 
               pixelCounter==linePixels-1)
@@ -775,7 +829,7 @@ inline bool PixelSorter::pixelDistanceIsLongEnoughToSort()
 
     default: break;
          
-  };
+  }
   return false;
 }
 
@@ -786,11 +840,31 @@ inline bool PixelSorter::pixelDistanceIsLongEnoughToSort()
 
 
 inline void PixelSorter::sortPixelSegments()
-{  
-  for (auto h = 0; h < rowBeginIters.size(); ++h)
+{ 
+  switch (param.sortByMenuChoice)
   {
-    sort(rowBeginIters[h], rowEndIters[h], sortFunc);        
-    reverseSortIfTrue(param.selectedReverseSort||lengthIsShortEnoughForFlip,h);
+    case SORT_BY_LUMINOSITY:
+  
+      for (auto h = 0; h < current_segment.beginItems.size(); ++h)
+      {
+        sort(current_segment.beginItems[h], current_segment.endItems[h], sortFunc);        
+        reverseSortIfTrue(param.selectedReverseSort||lengthIsShortEnoughForFlip,h);
+      }
+      break;
+      
+    case SORT_BY_RGB:
+
+      for (auto h = 0; h<current_segment.beginItems.size(); ++h)
+      {
+        for (auto k = current_segment.beginItems[h]; k!=current_segment.endItems[h]; ++k)
+        {
+          current_segment.beginItems.
+          shiftInfoCopy->pixelMap
+        }
+      }
+      break;
+
+    default: break;
   }
 }
 
@@ -801,13 +875,30 @@ inline void PixelSorter::sortPixelSegments()
 
 inline void PixelSorter::getAndStorePixelValue()
 {
+  
+  switch (param.sortByMenuChoice)
+  {  
+    case SORT_BY_LUMINOSITY:
+      break;
+    
+    case SORT_BY_RGB:
+      getLineWidthColorAverage();
+      break;
+
+    default: break;
+  }
+  
+
   getLineWidthPixelAverage();
-  mostQueue.push(columnAvg);
-  leastQueue.push(columnAvg);
   
-  
-  
-  currentPixelValueDistance = static_cast<PF_Fixed>((mostQueue.top()) - (leastQueue.top()));
+  PF_FpLong* mostValue = &current_segment.luminosity_sort.high_value;
+  PF_FpLong* leastValue = &current_segment.luminosity_sort.low_value;
+
+
+  *mostValue  = *mostValue<columnAvg?columnAvg:*mostValue;
+  *leastValue = *leastValue>columnAvg?columnAvg:*leastValue;        
+    
+  currentPixelValueDistance = static_cast<PF_Fixed>(*mostValue - *leastValue);
 }
 
 
@@ -828,4 +919,52 @@ inline void PixelSorter::getUserSetMinLength()
     minLength *= (MAX_RBG_VALUE-columnAvg)/MAX_RBG_VALUE + 1;
   }
 }
+
+
+
+
+
+
+inline void PixelSorter::sortSegment::getRGBInterpolatedVectors() 
+{
+
+  PF_FpLong red_range = rgb_sort.high_value.red - rgb_sort.low_value.red;  
+  PF_FpLong red_interpolation_slope = red_range/segmentLength;
+  
+  PF_FpLong green_range = rgb_sort.high_value.green - rgb_sort.low_value.green;  
+  PF_FpLong green_interpolation_slope = red_range/segmentLength;
+  
+  PF_FpLong blue_range = rgb_sort.high_value.blue - rgb_sort.low_value.blue;  
+  PF_FpLong blue_interpolation_slope = blue_range/segmentLength;
+
+  
+  PF_FpLong red_start   = rgb_sort.low_value.red;
+  PF_FpLong green_start = rgb_sort.low_value.green;
+  PF_FpLong blue_start  = rgb_sort.low_value.blue;
+  
+  for (int i = 0; i < beginItems.size(); ++i) {
+    
+    replacementPixelsVecs.push_back(PF_Pixel{255, 
+                                         static_cast<A_u_char>(red_start), 
+                                         static_cast<A_u_char>(green_start), 
+                                         static_cast<A_u_char>(blue_start)});
+    
+    red_start   = (red_start+red_interpolation_slope<=255) ? 
+                    (red_start+=red_interpolation_slope) : red_start;
+    
+    green_start = (green_start+green_interpolation_slope<=255) ? 
+                    (green_start+=green_interpolation_slope) : green_start;
+    
+    blue_start  = (blue_start+blue_interpolation_slope<=255) ? 
+                    (blue_start+=blue_interpolation_slope) : blue_start;        
+  }
+}
+
+
+
+inline void PixelSorter::sortSegment::reset()
+{
+  *this = sortSegment{};
+}
+
 

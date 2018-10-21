@@ -43,8 +43,10 @@
 #include <queue>
 #include <functional>
 #include <map>
+#include <deque>
 
 using namespace std;
+using namespace placeholders;
 
 #ifdef AE_OS_WIN
 	#include <Windows.h>
@@ -65,6 +67,7 @@ enum {
   SORT_INPUT=0,
   MAIN_GROUP_START,
   SORT_METHOD_DROPDOWN,
+  SORT_BY_DROPDOWN,
   ORIENTAION_DROPDOWN,
   REVERSE_SORT_CHECKBOX,
   SORT_VALUE_RANGE,
@@ -99,17 +102,6 @@ enum {
 
 
 
-struct PixelStruct{
-  
-  PixelStruct(){}
-  PixelStruct(const PF_Pixel& pixel) : 
-    pixel{pixel}, 
-    pixelValue{static_cast<PF_FpLong>(pixel.blue + pixel.green+ pixel.red)} {}
-
-  PF_FpLong pixelValue;
-  PF_Pixel  pixel;
-  PF_Pixel* avgValuePtr;
-};
 
 
 
@@ -120,6 +112,8 @@ class Base {
 
   virtual ~Base(){} 
 };
+
+
 
 
 
@@ -144,6 +138,12 @@ class ShiftInfo : public Base
     Base* pixelSorter;
 };
 
+
+
+
+
+
+
 struct ParamValues
 {
   ParamValues();
@@ -162,10 +162,38 @@ struct ParamValues
   PF_ParamValue  iterpolatePixelRanges;
   PF_ParamValue  sortMethodMenuChoice;
   PF_ParamValue  orientation;
+  PF_ParamValue  sortByMenuChoice;
   PF_FpLong      highRangeLimit;
   PF_FpLong      lowRangeLimit;
 
 };
+
+
+
+
+
+
+
+struct PixelStruct{
+  
+  PixelStruct(){}
+  PixelStruct(const PF_Pixel& pixel) : pixel{pixel}, 
+                                       pixelValue{static_cast<PF_FpLong>(
+                                         pixel.blue + 
+                                         pixel.green+ 
+                                         pixel.red)} {}
+
+
+  PF_FpLong  pixelValue;
+  PF_Pixel*  avgValuePtr;
+  PF_Pixel   pixel;
+  
+};
+
+
+
+
+
 
 class PixelSorter : public Base 
 {  
@@ -176,26 +204,14 @@ class PixelSorter : public Base
 
     void operator =(ShiftInfo& shiftInfo);
     ~PixelSorter();
+    
+    
 
     using highestPixelValueQueue = priority_queue<PF_FpLong,vector<PF_FpLong>,less<PF_FpLong>>;
     using lowestPixelValueQueue  = priority_queue<PF_FpLong,vector<PF_FpLong>,greater<PF_FpLong>>;
     using iteratorVector         = vector<vector<PixelStruct>::iterator>;
- 
     
-    enum SortOrientations
-    {
-      VERTICAL_ORIENTATION=1,
-      HORIZONTAL_ORIENTATION
-    };
-
-    enum SortMethods
-    {
-      USER_MAIN_SORT=1,
-      USER_MANUAL_SORT,
-      USER_RANGE_LOW
-    };
-  
-
+    
     random_device random{};
     ParamValues   param{};
     ShiftInfo*    shiftInfoCopy{};
@@ -218,16 +234,114 @@ class PixelSorter : public Base
 
 
 
-    highestPixelValueQueue mostQueue{};
-    lowestPixelValueQueue  leastQueue{};
-    iteratorVector         rowBeginIters{};
-    iteratorVector         rowEndIters{};
+    
+    class sortSegment 
+    {            
 
-    inline void storeRowIters(iteratorVector&);  
+      public:
+
+        sortSegment(){}
+
+        union 
+        {   
+          //UNION PART 1--------
+          struct 
+          {
+            struct 
+            {
+              PF_FpLong red{};
+              PF_FpLong green{};
+              PF_FpLong blue{};
+            
+            } high_value;
+
+            struct 
+            {
+              PF_FpLong red{};
+              PF_FpLong green{};
+              PF_FpLong blue{};
+            
+            } low_value;        
+          
+          } rgb_sort;
+          //____________________
+
+
+          //UNION PART 2--------  
+          struct
+          {
+            PF_FpLong high_value{};
+            PF_FpLong low_value{};
+          
+          } luminosity_sort;      
+          //____________________
+        };
+      
+
+
+        struct BeginItems 
+        {
+          BeginItems(iteratorVector& iter, 
+                     PF_Fixed x, 
+                     PF_Fixed y) : beginIters{iter}, x{x}, y{y}{}
+          
+          iteratorVector beginIters;
+          PF_Fixed x, y;
+        };
+
+        struct EndItems 
+        {
+          EndItems(iteratorVector& iter, 
+                     PF_Fixed x, 
+                     PF_Fixed y) : endIters{iter}, x{x}, y{y}{}
+          iteratorVector endIters;
+          PF_Fixed x, y;
+        };
+
+
+
+        PF_FpLong segmentLength;
+        PF_Boolean isEmpty = true;
+        vector<vector<PixelStruct>> replacementPixelsVecs;
+        vector<BeginItems> beginItems;
+        vector<EndItems> endItems;
+
+        inline void getRGBInterpolatedVectors();
+        inline void reset();
+        
+    
+    } current_segment;
+    
+    
+
+    enum SortOrientations
+    {
+      VERTICAL_ORIENTATION=1,
+      HORIZONTAL_ORIENTATION
+    };
+
+    enum SortMethods
+    {
+      USER_MAIN_SORT=1,
+      USER_MANUAL_SORT,
+      USER_RANGE_LOW
+    };
+
+    enum SortByMenuOptions
+    {
+      SORT_BY_LUMINOSITY=1,
+      SORT_BY_RGB
+    };
+  
+
+    
+
+ 
     inline void storeBeginRowIters();  
     inline void storeEndRowIters();  
     inline void getSortLength();    
     inline void getLineWidthPixelAverage();
+    inline void getLineWidthColorAverage();
     inline void sortPixelMap();
     inline void resetSortingVariables();
     inline void reverseSortIfTrue(PF_Boolean,PF_Fixed);
@@ -235,6 +349,7 @@ class PixelSorter : public Base
     inline void sortPixelSegments();
     inline void getAndStorePixelValue();
     inline void getUserSetMinLength();
+
     
     function<bool(const PixelStruct&, const PixelStruct&)> sortFunc = 
       [](const PixelStruct& left , const PixelStruct& right)
