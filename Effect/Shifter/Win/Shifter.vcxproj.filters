@@ -89,6 +89,9 @@
     <ClInclude Include="..\Shifter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\PixelSorter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="ShifterPiPL.rc">
@@ -109,6 +112,7 @@
       <Filter>Supporting Code</Filter>
     </ClCompile>
     <ClCompile Include="..\Shifter.cpp" />
+    <ClCompile Include="..\PixelSorter.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\ShifterPiPL.r">

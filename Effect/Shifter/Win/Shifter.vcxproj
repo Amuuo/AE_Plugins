@@ -280,6 +280,7 @@
     </Bscmake>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\PixelSorter.h" />
     <ClInclude Include="..\Shifter.h" />
     <ClInclude Include="..\..\..\Headers\A.h" />
     <ClInclude Include="..\..\..\Headers\AE_Effect.h" />
@@ -341,6 +342,7 @@ cl /D "MSWindows" /EP $(IntDir)%(Filename).rrc &gt;               "$(ProjectDir)
     <ClCompile Include="..\..\..\Util\AEGP_SuiteHandler.cpp" />
     <ClCompile Include="..\..\..\Util\MissingSuiteError.cpp" />
     <ClCompile Include="..\..\..\Util\Smart_Utils.cpp" />
+    <ClCompile Include="..\PixelSorter.cpp" />
     <ClCompile Include="..\Shifter.cpp" />
   </ItemGroup>
   <ItemGroup>

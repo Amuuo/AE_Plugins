@@ -27,6 +27,9 @@
 */
 
 #include "Shifter.h"
+#include "PixelSorter.h"
+
+
 
 
 static SPBasicSuite *S_pica_suiteP = NULL;
@@ -54,6 +57,10 @@ About (PF_InData   *in_data,
 }
 
 
+
+
+
+
 static PF_Err 
 GlobalSetup (PF_InData   *in_data,
              PF_OutData  *out_data,
@@ -72,11 +79,14 @@ GlobalSetup (PF_InData   *in_data,
     BUILD_VERSION);
 
 
-  out_data->out_flags =  PF_OutFlag_USE_OUTPUT_EXTENT |
+  out_data->out_flags =  PF_OutFlag_CUSTOM_UI | 
+                         PF_OutFlag_USE_OUTPUT_EXTENT |
                          PF_OutFlag_REFRESH_UI | 
                          PF_OutFlag_FORCE_RERENDER |
                          PF_OutFlag_I_USE_SHUTTER_ANGLE |
-                         PF_OutFlag_WIDE_TIME_INPUT;
+                         PF_OutFlag_WIDE_TIME_INPUT | 
+                         PF_OutFlag_SEND_UPDATE_PARAMS_UI |
+                         PF_OutFlag_REFRESH_UI;
 
   out_data->out_flags2 = PF_OutFlag2_SUPPORTS_SMART_RENDER |
                          PF_OutFlag2_SUPPORTS_QUERY_DYNAMIC_FLAGS | 
@@ -105,6 +115,7 @@ ParamsSetup (PF_InData    *in_data,
   PF_ADD_TOPIC("Main", MAIN_GROUP_START);
   PF_ADD_POPUP("Sort Method", 2, 0, "Basic Sort|Manual Sort", SORT_METHOD_DROPDOWN);
   PF_ADD_POPUP("Sort By:", 2, 0, "Luminosity|Individual RGB", SORT_BY_DROPDOWN);
+  PF_ADD_POPUP("Sort By Color", 3, 0, "Red|Green|Blue", SORT_BY_DROPDOWN);
   PF_ADD_POPUP("Sort Orientation", 2, 0, "Vertical|Horizontal", ORIENTAION_DROPDOWN);  
   PF_ADD_CHECKBOX("Invert Sort", "Enabled", 0, NULL, REVERSE_SORT_CHECKBOX); 
   PF_ADD_FLOAT_SLIDER("Sort Value Range", 1, 765, 1, 765, 0, 100, PF_Precision_INTEGER, NULL, NULL, SORT_VALUE_RANGE);  
@@ -148,7 +159,7 @@ ShiftImage8 (void     *refcon,
              PF_Pixel *outP)  
 {
   
-  register ShiftInfo *siP = reinterpret_cast<ShiftInfo*>(refcon);  
+  register ShiftInfo *siP=reinterpret_cast<ShiftInfo*>(refcon);
   PF_Err             err  = PF_Err_NONE;
             
   int x = dynamic_cast<PixelSorter*>(siP->pixelSorter)->param.orientation == 1 ? xL : yL;
@@ -165,6 +176,9 @@ ShiftImage8 (void     *refcon,
 
   return err;
 }
+
+
+
 
 
 
@@ -212,6 +226,7 @@ Render (PF_InData   *in_data,
 
 
 
+
 static PF_Err 
 RespondtoAEGP (PF_InData    *in_data,
                PF_OutData   *out_data,
@@ -235,6 +250,7 @@ RespondtoAEGP (PF_InData    *in_data,
 
 
 
+
 static PF_Err
 SmartRender(PF_InData*            in_data,
             PF_OutData*           out_data,
@@ -251,12 +267,12 @@ SmartRender(PF_InData*            in_data,
   PF_WorldSuite2*    wsP           = NULL;
   PF_PixelFormat     format        = PF_PixelFormat_INVALID;
   PF_Point           origin;
-  
+  PF_Handle         infoH = suites.HandleSuite1()->host_new_handle(sizeof(ShiftInfo));
   
   ShiftInfo *infoP{reinterpret_cast<ShiftInfo*>(
     suites.HandleSuite1()->host_lock_handle(
       reinterpret_cast<PF_Handle>(
-        extra->input->pre_render_data))) };
+        extra->input->pre_render_data)))};
   
   AEFX_SuiteScoper<PF_Iterate8Suite1> iterSuite {
     in_data,
@@ -271,8 +287,6 @@ SmartRender(PF_InData*            in_data,
     kPFWorldSuiteVersion2, 
     out_data 
   };
-
-  
 
 
   if (infoP) 
@@ -359,6 +373,7 @@ SmartRender(PF_InData*            in_data,
   }
 
   infoP->pixelMap.clear();
+  delete infoP->pixelSorter;
 
   ERR(extra->cb->checkin_layer_pixels(in_data->effect_ref, SORT_INPUT));
   
@@ -416,10 +431,12 @@ PreRender(PF_InData*         in_data,
         in_data->shutter_angle = 180;
         in_data->shutter_phase = 0;
         
+        
         infoP->in_data = *in_data;         
         infoP->pixelSorter = new PixelSorter{infoP, {infoP}};
         
-        PixelSorter* tmpSort = dynamic_cast<PixelSorter*>(infoP->pixelSorter);
+        dynamic_cast<PixelSorter*>(infoP->pixelSorter);
+        //PixelSorter* tmpSort = dynamic_cast<PixelSorter*>(infoP->pixelSorter);
 
         if (!err)
         {                    
@@ -522,447 +539,5 @@ EntryPointFunc (PF_Cmd      cmd,
 
 
 
-PixelSorter::PixelSorter()
-{
-}
-
-
-
-PixelSorter::PixelSorter(ShiftInfo* shiftInfo, ParamValues param)  :     
-    param         {param},    
-    shiftInfoCopy {shiftInfo}
-{
-    pixelLines = param.orientation == 1 ? 
-      shiftInfo->in_data.width : shiftInfo->in_data.height;
-    
-    linePixels = param.orientation == 1 ? 
-      shiftInfo->in_data.height : shiftInfo->in_data.width;
-}
-
-ParamValues::ParamValues()
-{
-}
-
-ParamValues::ParamValues(ShiftInfo* shiftInfo) :
-  minSortLength         {shiftInfo->params[MIN_SORT_LENGTH_SLIDER].u.fs_d.value}, 
-  sortValueRange        {shiftInfo->params[SORT_VALUE_RANGE].u.fs_d.value},
-  sortWidth             {shiftInfo->params[SORT_WIDTH_SLIDER].u.fd.value},
-  minReverseSortValue   {shiftInfo->params[MIN_REVERSE_DIST_SLIDER].u.fs_d.value},
-  minSortRandValue      {shiftInfo->params[MIN_SORT_RAND_SLIDER].u.fs_d.value},
-  highRangeLimit        {shiftInfo->params[HIGH_RANGE_SORT_LIMIT].u.fs_d.value},
-  lowRangeLimit         {shiftInfo->params[LOW_RANGE_SORT_LIMIT].u.fs_d.value},     
-  variableValue         {shiftInfo->params[VARIABLE_SLIDER].u.fs_d.value},
-  selectedReverseSort   {shiftInfo->params[REVERSE_SORT_CHECKBOX].u.bd.value},
-  iterpolatePixelRanges {shiftInfo->params[PIXEL_INTERPOLATION_CHECKBOX].u.bd.value},
-  favorsDarkRanges      {shiftInfo->params[FAVOR_DARK_RANGES].u.bd.value},
-  selectedVariableSort  {shiftInfo->params[VARIABLE_SORT_CHECKBOX].u.bd.value},
-  sortMethodMenuChoice  {shiftInfo->params[SORT_METHOD_DROPDOWN].u.pd.value},
-  orientation           {shiftInfo->params[ORIENTAION_DROPDOWN].u.pd.value},
-  sortByMenuChoice      {shiftInfo->params[SORT_BY_DROPDOWN].u.pd.value}
-  
-{
-
-}
-
-
-void PixelSorter::operator=(ShiftInfo & shiftInfo)
-{
-  *this = shiftInfo;
-}
-
-
-
-
-
-PixelSorter::~PixelSorter()
-{
-  delete this;
-}
-
-
-
-
-                                                                 
-
-inline void PixelSorter::
-storeBeginRowIters()
-{ 
-  for (PF_Fixed j=lineCounter; j<(lineCounter+param.sortWidth)&&j<pixelLines-1; ++j)
-  {
-    BeginItems beginItem;
-    beginItem.beginIters.push_back(shiftInfoCopy->pixelMap[j].begin()+pixelCounter);
-    beginItem.x=j;
-    beginItem.y=pixelCounter;
-    
-    current_segment.beginItems.push_back(beginItem);
-  }
-}
-
-
-
-
-
-
-inline void PixelSorter::
-storeEndRowIters()
-{  
-  for (PF_Fixed j = lineCounter; j < (lineCounter + param.sortWidth) && j < pixelLines - 1; ++j) 
-  { 
-    EndItems endItem;
-    endItem.endIters.push_back(shiftInfoCopy->pixelMap[j].begin()+pixelCounter);
-    endItem.x=j;
-    endItem.y=pixelCounter;
-    current_segment.endItems.push_back(endItem);
-  }  
-}
-
-
-
-
-
-inline void PixelSorter::
-getSortLength()
-{
-  sortLength = param.sortValueRange;
-
-  if (param.selectedVariableSort)
-  { 
-    if(param.favorsDarkRanges)
-    {
-      sortLength = (sortLength/4) * 
-        pow((abs(current_segment.luminosity_sort.low_value-MAX_RBG_VALUE)/MAX_RBG_VALUE+1), 
-            2+(param.variableValue-1));
-    }
-    else
-    {
-      sortLength = (sortLength/4) * 
-        pow((current_segment.luminosity_sort.high_value/MAX_RBG_VALUE+1), 
-            2+(param.variableValue-1));
-    }
-  }
-}
-
-
-
-
-
-
-inline void PixelSorter::
-getLineWidthPixelAverage()
-{
-  columnAvg = 0;
-  auto columnWidthSpan = lineCounter + param.sortWidth;
-  
-
-  for (auto i=lineCounter; i<columnWidthSpan && i<pixelLines-1; ++i) 
-  {    
-    columnAvg += shiftInfoCopy->pixelMap[i][pixelCounter].pixelValue;
-  }
-  columnAvg /= param.sortWidth;
-
-
-  for(auto i=lineCounter; i<columnWidthSpan && i<pixelLines-1; ++i) 
-  {
-    shiftInfoCopy->pixelMap[i][pixelCounter].pixel.alpha = 255;
-  }  
-   
-
-  if (currPixDistance != 0 ) { startingRGBValue = columnAvg; } 
- 
-}
-
-
-
-
-inline void PixelSorter::
-getLineWidthColorAverage()
-{
-  auto columnWidthSpan = lineCounter+param.sortWidth;  
-  
-  PF_FpLong r_avg; 
-  PF_FpLong g_avg; 
-  PF_FpLong b_avg;
-
-
-
-  for (auto i = lineCounter; i<columnAvg && i<pixelLines-1; ++i)
-  {
-    r_avg += shiftInfoCopy->pixelMap[i][pixelCounter].pixel.red;
-    g_avg += shiftInfoCopy->pixelMap[i][pixelCounter].pixel.green;
-    b_avg += shiftInfoCopy->pixelMap[i][pixelCounter].pixel.blue;
-  }
-  r_avg /= param.sortWidth;
-  g_avg /= param.sortWidth;
-  b_avg /= param.sortWidth;
-
-  
-
-
-  if (r_avg>current_segment.rgb_sort.high_value.red)  
-    current_segment.rgb_sort.high_value.red = r_avg;
-  
-  if (g_avg>current_segment.rgb_sort.high_value.green)  
-    current_segment.rgb_sort.high_value.green = g_avg;
-  
-  if (b_avg>current_segment.rgb_sort.high_value.blue)
-    current_segment.rgb_sort.high_value.blue = b_avg;
-
-
-  if (r_avg<current_segment.rgb_sort.high_value.red)
-    current_segment.rgb_sort.high_value.red = r_avg;
-  
-  if (g_avg<current_segment.rgb_sort.high_value.green)
-    current_segment.rgb_sort.high_value.green = g_avg;
-  
-  if (b_avg<current_segment.rgb_sort.high_value.blue)
-    current_segment.rgb_sort.high_value.blue = b_avg;
-
-  
-}
-
-
-
-
-
-void PixelSorter::
-sortPixelMap()
-{
-  
-
-  for (lineCounter=0; lineCounter<pixelLines; lineCounter+=param.sortWidth) 
-  { 
-    resetSortingVariables();
-    storeBeginRowIters();
-    for (pixelCounter=0; pixelCounter<linePixels; ++pixelCounter, ++currPixDistance) 
-    {   
-      if (!current_segment.isEmpty) 
-      {
-        resetSortingVariables();
-        storeBeginRowIters();                
-        getAndStorePixelValue();  
-        current_segment.isEmpty = false;
-      }
-      if (pixelDistanceIsLongEnoughToSort()) 
-      {                                        
-        storeEndRowIters();
-        sortPixelSegments();                    
-        resetSortingVariables();
-        continue;
-      } 
-      else
-      {
-        getAndStorePixelValue();     
-      }
-    }           
-  }
-  resetSortingVariables();
-}
-
-
-
-
-
-inline void PixelSorter::resetSortingVariables()
-{
-
-  current_segment.reset();
-  startingRGBValue = 0;
-  currPixDistance = 0;  
-  pixValueAverage = 0;
-  columnAvg = 0;
-  lengthIsShortEnoughForFlip = false;
-  minLength = 0;
-  currentPixelValueDistance = 0;
-}
-
-
-
-
-
-
-inline void PixelSorter::reverseSortIfTrue(PF_Boolean needToReverse, PF_Fixed index)
-{
-  if (needToReverse)
-    reverse(current_segment.beginItems[index].beginIters, current_segment.endItems[index].endIters);
-}
-
-
-
-
-
-inline bool PixelSorter::pixelDistanceIsLongEnoughToSort()
-{
-  getSortLength();
-  getUserSetMinLength();
-
-  switch (param.sortMethodMenuChoice)
-  {
-    case USER_MANUAL_SORT:
-  
-      if(current_segment.luminosity_sort.high_value>=param.highRangeLimit && 
-          current_segment.luminosity_sort.high_value<=param.lowRangeLimit)
-      {
-        if (currentPixelValueDistance>=sortLength || 
-              pixelCounter==linePixels-1)
-        {
-          return true;  
-        }
-      }
-      break;
-
-    case USER_MAIN_SORT:
-      
-      if (((currentPixelValueDistance >=sortLength) && 
-            (currPixDistance>minLength)) ||
-             (pixelCounter==linePixels-1))
-      {
-        lengthIsShortEnoughForFlip = 
-          currPixDistance < param.minReverseSortValue ? true:false; 
-        return true;
-      }
-      break;
-
-    default: break;
-         
-  }
-  return false;
-}
-
-
-
-
-
-
-
-inline void PixelSorter::sortPixelSegments()
-{ 
-  switch (param.sortByMenuChoice)
-  {
-    case SORT_BY_LUMINOSITY:
-  
-      for (auto h = 0; h < current_segment.beginItems.size(); ++h)
-      {
-        sort(current_segment.beginItems[h].beginIters, 
-             current_segment.endItems[h].endIters, sortFunc);        
-        reverseSortIfTrue(param.selectedReverseSort||lengthIsShortEnoughForFlip,h);
-      }
-      break;
-      
-    case SORT_BY_RGB:
-
-      for (auto line = 0, pixel=0; line<current_segment.beginItems.size(); ++line)
-      {
-        for (auto k = current_segment.beginItems[line].beginIters[line]; 
-             k!=current_segment.endItems[line].endIters[line]; ++k, ++pixel)
-        {
-          k->pixel=current_segment.replacementPixelsVecs[line][pixel].pixel;          
-        }
-        pixel=0;
-      }
-      break;
-
-    default: break;
-  }
-}
-
-
-
-
-
-
-inline void PixelSorter::getAndStorePixelValue()
-{
-  
-  switch (param.sortByMenuChoice)
-  {  
-    case SORT_BY_LUMINOSITY:
-      break;
-    
-    case SORT_BY_RGB:
-      getLineWidthColorAverage();
-      current_segment.getRGBInterpolatedVectors();
-      break;
-
-    default: break;
-  }
-  
-
-  getLineWidthPixelAverage();
-  
-  PF_FpLong* mostValue = &current_segment.luminosity_sort.high_value;
-  PF_FpLong* leastValue = &current_segment.luminosity_sort.low_value;
-
-
-  *mostValue  = *mostValue<columnAvg?columnAvg:*mostValue;
-  *leastValue = *leastValue>columnAvg?columnAvg:*leastValue;        
-    
-  currentPixelValueDistance = static_cast<PF_Fixed>(*mostValue - *leastValue);
-}
-
-
-
-
-
-
-inline void PixelSorter::getUserSetMinLength()
-{
-  minLength = param.minSortRandValue;
-  if (param.minSortRandValue >= 2) 
-  {
-    minLength += param.minSortLength; 
-    
-    minLength += 
-      (random() % (int)(param.minSortRandValue/2)) - param.minSortRandValue;
-    
-    minLength *= (MAX_RBG_VALUE-columnAvg)/MAX_RBG_VALUE + 1;
-  }
-}
-
-
-
-
-
-
-inline void PixelSorter::SortSegment::getRGBInterpolatedVectors() 
-{
-
-  PF_FpLong red_range = rgb_sort.high_value.red - rgb_sort.low_value.red;  
-  PF_FpLong red_interpolation_slope = red_range/segmentLength;
-  
-  PF_FpLong green_range = rgb_sort.high_value.green - rgb_sort.low_value.green;  
-  PF_FpLong green_interpolation_slope = red_range/segmentLength;
-  
-  PF_FpLong blue_range = rgb_sort.high_value.blue - rgb_sort.low_value.blue;  
-  PF_FpLong blue_interpolation_slope = blue_range/segmentLength;
-
-  
-  PF_FpLong red_start   = rgb_sort.low_value.red;
-  PF_FpLong green_start = rgb_sort.low_value.green;
-  PF_FpLong blue_start  = rgb_sort.low_value.blue;
-  
-  for (int i = 0; i < beginItems.size(); ++i) {
-    
-    replacementPixelsVecs[i].push_back(PF_Pixel{255, 
-                                         static_cast<A_u_char>(red_start), 
-                                         static_cast<A_u_char>(green_start), 
-                                         static_cast<A_u_char>(blue_start)});
-    
-    red_start   = (red_start+red_interpolation_slope<=255) ? 
-                    (red_start+=red_interpolation_slope) : red_start;
-    
-    green_start = (green_start+green_interpolation_slope<=255) ? 
-                    (green_start+=green_interpolation_slope) : green_start;
-    
-    blue_start  = (blue_start+blue_interpolation_slope<=255) ? 
-                    (blue_start+=blue_interpolation_slope) : blue_start;        
-  }
-}
-
-
-
-inline void PixelSorter::SortSegment::reset()
-{
-  *this = SortSegment{};
-}
 
 
