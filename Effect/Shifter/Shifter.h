@@ -45,9 +45,6 @@
 #include <map>
 #include <deque>
 
-using namespace std;
-using namespace placeholders;
-
 #ifdef AE_OS_WIN
 	#include <Windows.h>
 #endif
@@ -61,6 +58,12 @@ using namespace placeholders;
 #define	STAGE_VERSION		PF_Stage_DEVELOP
 #define	BUILD_VERSION		1
 #define MAX_RBG_VALUE  765.0f
+
+
+
+using namespace std;
+using namespace placeholders;
+ 
 
 enum {
 // default input layer
@@ -100,6 +103,20 @@ enum {
 
 
 
+struct PixelStruct{
+  
+  PixelStruct(){}
+  PixelStruct(PF_Pixel& pixel) : pixel{pixel}, 
+                                 pixelValue{
+                                  static_cast<PF_FpLong>(
+                                    pixel.blue + pixel.green+ pixel.red)} {}
+
+
+  PF_FpLong  pixelValue;
+  PF_Pixel*  avgValuePtr;
+  PF_Pixel   pixel;
+  
+};
 
 
 
@@ -174,21 +191,7 @@ struct ParamValues
 
 
 
-struct PixelStruct{
-  
-  PixelStruct(){}
-  PixelStruct(const PF_Pixel& pixel) : pixel{pixel}, 
-                                       pixelValue{static_cast<PF_FpLong>(
-                                         pixel.blue + 
-                                         pixel.green+ 
-                                         pixel.red)} {}
 
-
-  PF_FpLong  pixelValue;
-  PF_Pixel*  avgValuePtr;
-  PF_Pixel   pixel;
-  
-};
 
 
 
@@ -234,80 +237,88 @@ class PixelSorter : public Base
 
 
 
+    struct BeginItems 
+    {
+      BeginItems(){}
+      BeginItems(vector<PixelStruct>::iterator iter, 
+                  PF_Fixed x, 
+                  PF_Fixed y)
+      {
+        x=x;
+        y=y;
+        beginIters.push_back(iter);
+      }
+          
+      iteratorVector beginIters;
+      PF_Fixed x, y;
+    };
+
+    struct EndItems 
+    {
+      EndItems(){}
+      EndItems(vector<PixelStruct>::iterator iter, 
+                PF_Fixed x, 
+                PF_Fixed y)
+      {
+        x=x;
+        y=y;
+        endIters.push_back(iter);
+      }
+      iteratorVector endIters;
+      PF_Fixed x, y;
+    };
+
     
-    class sortSegment 
+    class SortSegment 
     {            
 
       public:
 
-        sortSegment(){}
+      SortSegment(){}
 
-        union 
-        {   
-          //UNION PART 1--------
+      union 
+      {   
+        //UNION PART 1--------
+        struct 
+        {
           struct 
           {
-            struct 
-            {
-              PF_FpLong red{};
-              PF_FpLong green{};
-              PF_FpLong blue{};
+            PF_FpLong red{};
+            PF_FpLong green{};
+            PF_FpLong blue{};
             
-            } high_value;
+          } high_value;
 
-            struct 
-            {
-              PF_FpLong red{};
-              PF_FpLong green{};
-              PF_FpLong blue{};
-            
-            } low_value;        
-          
-          } rgb_sort;
-          //____________________
-
-
-          //UNION PART 2--------  
-          struct
+          struct 
           {
-            PF_FpLong high_value{};
-            PF_FpLong low_value{};
+            PF_FpLong red{};
+            PF_FpLong green{};
+            PF_FpLong blue{};
+            
+          } low_value;        
           
-          } luminosity_sort;      
-          //____________________
-        };
-      
+        } rgb_sort;
+        //____________________
 
 
-        struct BeginItems 
+        //UNION PART 2--------  
+        struct
         {
-          BeginItems(iteratorVector& iter, 
-                     PF_Fixed x, 
-                     PF_Fixed y) : beginIters{iter}, x{x}, y{y}{}
+          PF_FpLong high_value{};
+          PF_FpLong low_value{};
           
-          iteratorVector beginIters;
-          PF_Fixed x, y;
-        };
+        } luminosity_sort;      
+        //____________________
+      };
 
-        struct EndItems 
-        {
-          EndItems(iteratorVector& iter, 
-                     PF_Fixed x, 
-                     PF_Fixed y) : endIters{iter}, x{x}, y{y}{}
-          iteratorVector endIters;
-          PF_Fixed x, y;
-        };
+      PF_FpLong segmentLength;
+      PF_Boolean isEmpty = true;
+      vector<vector<PixelStruct>> replacementPixelsVecs;
+      vector<BeginItems> beginItems;
+      vector<EndItems> endItems;
 
-
-
-        PF_FpLong segmentLength;
-        PF_Boolean isEmpty = true;
-        vector<vector<PixelStruct>> replacementPixelsVecs;
-        vector<BeginItems> beginItems;
-        vector<EndItems> endItems;
-
-        inline void getRGBInterpolatedVectors();
-        inline void reset();
+      inline void getRGBInterpolatedVectors();
+      inline void reset();
         
     
     } current_segment;

@@ -587,11 +587,14 @@ PixelSorter::~PixelSorter()
 inline void PixelSorter::
 storeBeginRowIters()
 { 
-  for (PF_Fixed j = lineCounter; j < (lineCounter + param.sortWidth) && j < pixelLines - 1; ++j) 
-  { 
-    current_segment.beginItems.push_back(
-      sortSegment::BeginItems{
-        (shiftInfoCopy->pixelMap[j].begin()+pixelCounter), j, pixelCounter});     
+  for (PF_Fixed j=lineCounter; j<(lineCounter+param.sortWidth)&&j<pixelLines-1; ++j)
+  {
+    BeginItems beginItem;
+    beginItem.beginIters.push_back(shiftInfoCopy->pixelMap[j].begin()+pixelCounter);
+    beginItem.x=j;
+    beginItem.y=pixelCounter;
+    
+    current_segment.beginItems.push_back(beginItem);
   }
 }
 
@@ -605,9 +608,11 @@ storeEndRowIters()
 {  
   for (PF_Fixed j = lineCounter; j < (lineCounter + param.sortWidth) && j < pixelLines - 1; ++j) 
   { 
-    current_segment.endItems.push_back(
-      sortSegment::EndItems{
-        (shiftInfoCopy->pixelMap[j].begin()+pixelCounter), j, pixelCounter});     
+    EndItems endItem;
+    endItem.endIters.push_back(shiftInfoCopy->pixelMap[j].begin()+pixelCounter);
+    endItem.x=j;
+    endItem.y=pixelCounter;
+    current_segment.endItems.push_back(endItem);
   }  
 }
 
@@ -778,7 +783,7 @@ inline void PixelSorter::resetSortingVariables()
 inline void PixelSorter::reverseSortIfTrue(PF_Boolean needToReverse, PF_Fixed index)
 {
   if (needToReverse)
-    reverse(current_segment.beginItems[index], current_segment.endItems[index]);
+    reverse(current_segment.beginItems[index].beginIters, current_segment.endItems[index].endIters);
 }
 
 
@@ -789,16 +794,6 @@ inline bool PixelSorter::pixelDistanceIsLongEnoughToSort()
 {
   getSortLength();
   getUserSetMinLength();
-
-  switch (param.sortByMenuChoice)
-  {
-    case SORT_BY_LUMINOSITY:
-      break;
-
-    case SORT_BY_RGB:
-      break;
-  }
-
 
   switch (param.sortMethodMenuChoice)
   {
@@ -847,20 +842,22 @@ inline void PixelSorter::sortPixelSegments()
   
       for (auto h = 0; h < current_segment.beginItems.size(); ++h)
       {
-        sort(current_segment.beginItems[h], current_segment.endItems[h], sortFunc);        
+        sort(current_segment.beginItems[h].beginIters, 
+             current_segment.endItems[h].endIters, sortFunc);        
         reverseSortIfTrue(param.selectedReverseSort||lengthIsShortEnoughForFlip,h);
       }
       break;
       
     case SORT_BY_RGB:
 
-      for (auto h = 0; h<current_segment.beginItems.size(); ++h)
+      for (auto line = 0, pixel=0; line<current_segment.beginItems.size(); ++line)
       {
-        for (auto k = current_segment.beginItems[h]; k!=current_segment.endItems[h]; ++k)
+        for (auto k = current_segment.beginItems[line].beginIters[line]; 
+             k!=current_segment.endItems[line].endIters[line]; ++k, ++pixel)
         {
-          current_segment.beginItems.
-          shiftInfoCopy->pixelMap
+          k->pixel=current_segment.replacementPixelsVecs[line][pixel].pixel;          
         }
+        pixel=0;
       }
       break;
 
@@ -883,6 +880,7 @@ inline void PixelSorter::getAndStorePixelValue()
     
     case SORT_BY_RGB:
       getLineWidthColorAverage();
+      current_segment.getRGBInterpolatedVectors();
       break;
 
     default: break;
@@ -925,7 +923,7 @@ inline void PixelSorter::getUserSetMinLength()
 
 
 
-inline void PixelSorter::sortSegment::getRGBInterpolatedVectors() 
+inline void PixelSorter::SortSegment::getRGBInterpolatedVectors() 
 {
 
   PF_FpLong red_range = rgb_sort.high_value.red - rgb_sort.low_value.red;  
@@ -944,7 +942,7 @@ inline void PixelSorter::sortSegment::getRGBInterpolatedVectors()
   
   for (int i = 0; i < beginItems.size(); ++i) {
     
-    replacementPixelsVecs.push_back(PF_Pixel{255, 
+    replacementPixelsVecs[i].push_back(PF_Pixel{255, 
                                          static_cast<A_u_char>(red_start), 
                                          static_cast<A_u_char>(green_start), 
                                          static_cast<A_u_char>(blue_start)});
@@ -962,9 +960,9 @@ inline void PixelSorter::sortSegment::getRGBInterpolatedVectors()
 
 
 
-inline void PixelSorter::sortSegment::reset()
+inline void PixelSorter::SortSegment::reset()
 {
-  *this = sortSegment{};
+  *this = SortSegment{};
 }
 
 
