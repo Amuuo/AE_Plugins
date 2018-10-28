@@ -11,7 +11,7 @@ void SortSegment::reset() {
   lowValue = PixelStruct{};
   segmentLength = 0;
   isEmpty = true;
-  columnAvg = 0;
+  columnAvg = 0;  
 }
 
 
@@ -26,9 +26,7 @@ void SorterBase::setupParams() {
   in_data->pica_basicP->AcquireSuite(kPFColorCallbacksSuite,
                                     kPFColorCallbacksSuiteVersion1,
                                     &colorSuite);
-  
-  
-
+  setIterWidth();
 }
 
 void SorterBase::setIterWidth() {

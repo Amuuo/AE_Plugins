@@ -90,7 +90,7 @@ static PF_Err ParamsSetup(PF_InData *in_data,PF_OutData *out_data,
 
   PF_ADD_TOPIC("Variable Sort", VARIABLE_SORT_GROUP_START);
   PF_ADD_CHECKBOX("Variable Sort", "Enabled", 0, NULL, VARIABLE_SORT_CHECKBOX);
-  PF_ADD_FLOAT_SLIDER("Variable Range", 0.001, 5, 0.001, 3, NULL, 1, PF_Precision_HUNDREDTHS, NULL, NULL, VARIABLE_SLIDER);
+  PF_ADD_FLOAT_SLIDER("Variable Range", 0.01, 5, 0.01, 3, NULL, 1, PF_Precision_TENTHS, NULL, NULL, VARIABLE_SLIDER);
   PF_ADD_CHECKBOX("Favor Dark Ranges", "Enabled", 0, NULL, FAVOR_DARK_RANGES);
   PF_END_TOPIC(VARIABLE_SORT_GROUP_END);
 
@@ -230,8 +230,7 @@ static PF_Err SmartRender(PF_InData* in_data, PF_OutData* out_data,
 
       if (!err && output_worldP) {
         infoP->ref = in_data->effect_ref;
-        in_data->shutter_angle = 180;
-        in_data->shutter_phase = 0;
+        
         infoP->in_data.reset(in_data);
         infoP->out_data.reset(out_data);
         infoP->setupParams();
@@ -299,7 +298,7 @@ static PF_Err PreRender(PF_InData* in_data,PF_OutData* out_data,
 
         req.field = PF_Field_FRAME;
 
-        infoP->setIterWidth();
+        
                 
         ERR(extra->cb->checkout_layer(in_data->effect_ref, SORT_INPUT, SORT_INPUT,
                                       &req, in_data->current_time, in_data->local_time_step,
@@ -353,12 +352,13 @@ DllExport PF_Err EntryPointFunc(PF_Cmd cmd,PF_InData *in_data, PF_OutData *out_d
 
       case PF_Cmd_SMART_PRE_RENDER:
         err = PreRender(in_data, out_data, params,
-                        reinterpret_cast<PF_PreRenderExtra*>(extraP));
+                        reinterpret_cast<PF_PreRenderExtra*>(extraP));          
         break;
 
       case PF_Cmd_SMART_RENDER:
         err = SmartRender(in_data, out_data, params,
                           reinterpret_cast<PF_SmartRenderExtra*>(extraP));
+
         break;
 
       case PF_Cmd_COMPLETELY_GENERAL:

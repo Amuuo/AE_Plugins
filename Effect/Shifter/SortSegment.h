@@ -33,10 +33,10 @@ using namespace std;
 
 class SortSegment {
 
-  using iteratorPair =
-    vector<pair<vector<PixelStruct>::iterator, vector<PixelStruct>::iterator>>;
 
 public:
+  using iteratorPair =
+    vector<pair<vector<PixelStruct>::iterator, vector<PixelStruct>::iterator>>;
 
   SortSegment();
 
