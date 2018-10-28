@@ -22,8 +22,13 @@
 
 #pragma once
 
-#ifndef SHIFTER_H
-#define SHIFTER_H
+#include "PixelSorter.h"
+#include "PixelStruct.h"
+#include "SorterBase.h"
+#include "SortSegment.h"
+#include "SortSegmentRed.h"
+#include "SortSegmentGreen.h"
+#include "SortSegmentBlue.h"
 
 #include "AEConfig.h"
 #include "entry.h"
@@ -44,7 +49,6 @@
 #include <functional>
 #include <map>
 #include <deque>
-#include "PixelSorter.h"
 
 
 #ifdef AE_OS_WIN
@@ -63,6 +67,8 @@
 
 
 
+
+
 AEGP_PluginID pluginID;
 
 extern "C" {
@@ -77,5 +83,3 @@ EntryPointFunc (
 	void			*extraP);
 
 }
-
-#endif // SHIFTER_H

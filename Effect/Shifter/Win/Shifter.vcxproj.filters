@@ -89,6 +89,24 @@
     <ClInclude Include="..\Shifter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\SortSegmentBlue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SortSegmentGreen.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SortSegmentRed.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SortSegment.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SorterBase.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\PixelStruct.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\PixelSorter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -111,15 +129,18 @@
     <ClCompile Include="..\..\..\Util\Smart_Utils.cpp">
       <Filter>Supporting Code</Filter>
     </ClCompile>
+    <ClCompile Include="..\SortSegment.cpp" />
+    <ClCompile Include="..\SortSegmentBlue.cpp" />
+    <ClCompile Include="..\SortSegmentGreen.cpp" />
+    <ClCompile Include="..\SortSegmentRed.cpp" />
+    <ClCompile Include="..\PixelStruct.cpp" />
     <ClCompile Include="..\Shifter.cpp" />
+    <ClCompile Include="..\SorterBase.cpp" />
     <ClCompile Include="..\PixelSorter.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\ShifterPiPL.r">
+    <None Include="..\ShifterPiPL.r">
       <Filter>Resource Files</Filter>
-    </CustomBuild>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
+    </None>
   </ItemGroup>
 </Project>
