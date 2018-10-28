@@ -25,6 +25,6 @@ public:
   void operator()(PF_Pixel);
 
   PF_Pixel pixel{};
-  A_u_char value{};
+  A_long value{};
 
 };

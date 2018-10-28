@@ -81,29 +81,29 @@ static PF_Err ParamsSetup(PF_InData *in_data,PF_OutData *out_data,
   PF_ADD_TOPIC("Main", MAIN_GROUP_START);
   PF_ADD_POPUP("Sort Method", 2, 0, "Basic Sort|Manual Sort", SORT_METHOD_DROPDOWN);
   PF_ADD_POPUP("Sort By:", 2, 0, "Luminance|Hue|Saturation|Lightness", SORT_BY_DROPDOWN);
-  PF_ADD_POPUP("Sort By Color", 3, 0, "Red|Green|Blue", SORT_BY_DROPDOWN);
+  PF_ADD_POPUP("Sort By Color", 3, 0, "Red|Green|Blue", SORT_BY_COLOR_DROPDOWN);
   PF_ADD_POPUP("Sort Orientation", 2, 0, "Vertical|Horizontal", ORIENTAION_DROPDOWN);
   PF_ADD_CHECKBOX("Invert Sort", "Enabled", 0, NULL, REVERSE_SORT_CHECKBOX);
-  PF_ADD_FLOAT_SLIDER("Sort Value Range", 1, 765, 1, 765, 0, 100, PF_Precision_INTEGER, NULL, NULL, SORT_VALUE_RANGE);
-  PF_ADD_SLIDER("Sort Width", 1, 200, 1, 200, 5, SORT_WIDTH_SLIDER);
+  PF_ADD_SLIDER("Sort Value Range", 1, 1000, 1, 765, 100, SORT_VALUE_RANGE);
+  PF_ADD_SLIDER("Sort Width", 1, 1000, 1, 200, 5, SORT_WIDTH_SLIDER);
   PF_END_TOPIC(MAIN_GROUP_END);
 
   PF_ADD_TOPIC("Variable Sort", VARIABLE_SORT_GROUP_START);
   PF_ADD_CHECKBOX("Variable Sort", "Enabled", 0, NULL, VARIABLE_SORT_CHECKBOX);
-  PF_ADD_FLOAT_SLIDER("Variable Range", 0, 3, 0, 3, NULL, 1, PF_Precision_HUNDREDTHS, NULL, NULL, VARIABLE_SLIDER);
+  PF_ADD_FLOAT_SLIDER("Variable Range", 0.001, 5, 0.001, 3, NULL, 1, PF_Precision_HUNDREDTHS, NULL, NULL, VARIABLE_SLIDER);
   PF_ADD_CHECKBOX("Favor Dark Ranges", "Enabled", 0, NULL, FAVOR_DARK_RANGES);
   PF_END_TOPIC(VARIABLE_SORT_GROUP_END);
 
   PF_ADD_TOPIC("Manual Sort Range", MANUAL_SORT_RANGE_GROUP_START);
-  PF_ADD_FLOAT_SLIDER("High Range Sort Limit", 1, 765, 1, 765, 0, 500, PF_Precision_INTEGER, NULL, NULL, HIGH_RANGE_SORT_LIMIT);
-  PF_ADD_FLOAT_SLIDER("Low Range Sort Limit", 0, 765, 0, 765, 0, 350, PF_Precision_INTEGER, NULL, NULL, LOW_RANGE_SORT_LIMIT);
+  PF_ADD_SLIDER("High Range Sort Limit", 1, 1000, 1, 765, 500, HIGH_RANGE_SORT_LIMIT);
+  PF_ADD_SLIDER("Low Range Sort Limit", 1, 1000, 1, 765, 350, LOW_RANGE_SORT_LIMIT);
   PF_END_TOPIC(MANUAL_SORT_RANGE_GROUP_END);
 
 
   PF_ADD_TOPIC("Misc", MISC_GROUP_START);
-  PF_ADD_FLOAT_SLIDER("Minimum Sort Length", 1, 200, 1, 200, 0, 1, PF_Precision_INTEGER, NULL, NULL, MIN_SORT_LENGTH_SLIDER);
-  PF_ADD_FLOAT_SLIDER("Minimum Sort Random", 1, 200, 1, 200, 0, 1, PF_Precision_INTEGER, NULL, NULL, MIN_SORT_RAND_SLIDER);
-  PF_ADD_FLOAT_SLIDER("Minimum Reverse Sort Distance", 0, 300, 0, 300, 0, 0, PF_Precision_INTEGER, NULL, NULL, MIN_REVERSE_DIST_SLIDER);
+  PF_ADD_SLIDER("Minimum Sort Length", 1, 1000, 1, 200, 1, MIN_SORT_LENGTH_SLIDER);
+  PF_ADD_SLIDER("Minimum Sort Random", 1, 1000, 1, 200, 1, MIN_SORT_RAND_SLIDER);
+  PF_ADD_SLIDER("Minimum Reverse Sort Distance", 0, 300, 0, 300, 0,  MIN_REVERSE_DIST_SLIDER);
   PF_ADD_CHECKBOX("Interpolate Pixel Ranges", "Enabled", 0, NULL, PIXEL_INTERPOLATION_CHECKBOX);
   PF_END_TOPIC(MISC_GROUP_END);
 
@@ -141,7 +141,7 @@ static PF_Err RespondtoAEGP(PF_InData *in_data, PF_OutData *out_data,
 
 
 
-static PF_Err ShiftImage8(void *refcon, A_long xL, A_long yL,
+static PF_Err SortImagePixels(void *refcon, A_long xL, A_long yL,
                           PF_Pixel *inP, PF_Pixel *outP) {
 
   
@@ -155,38 +155,37 @@ static PF_Err ShiftImage8(void *refcon, A_long xL, A_long yL,
   }
   
   else { 
-    
-    siP->pixelMap[xL][yL](*inP);
-
 
     switch (siP->params[SORT_BY_DROPDOWN].u.pd.value) {
 
       case HUE:
         reinterpret_cast<const PF_ColorCallbacks*>(siP->colorSuite)->
-          Hue(siP->in_data.effect_ref, &(siP->pixelMap[xL][yL].pixel),
-              (A_long*)&(siP->pixelMap[xL][yL].value));
+          Hue(siP->ref, inP,
+              &(siP->pixelMap[xL][yL].value));
         break;
 
       case SATURATION:
         reinterpret_cast<const PF_ColorCallbacks*>(siP->colorSuite)->
-          Saturation(siP->in_data.effect_ref, &(siP->pixelMap[xL][yL].pixel),
-                     (A_long*)&(siP->pixelMap[xL][yL].value));
+          Saturation(siP->ref, inP,
+                     &(siP->pixelMap[xL][yL].value));
         break;
 
       case LIGHTNESS:
         reinterpret_cast<const PF_ColorCallbacks*>(siP->colorSuite)->
-          Lightness(siP->in_data.effect_ref, &(siP->pixelMap[xL][yL].pixel),
-                    (A_long*)&(siP->pixelMap[xL][yL].value));
+          Lightness(siP->ref, inP,
+                    &(siP->pixelMap[xL][yL].value));
         break;
 
       case LUMINANCE:
         reinterpret_cast<const PF_ColorCallbacks*>(siP->colorSuite)->
-          Luminance(siP->in_data.effect_ref, &(siP->pixelMap[xL][yL].pixel),
-                    (A_long*)&(siP->pixelMap[xL][yL].value));
+          Luminance(siP->ref, inP,
+                    &(siP->pixelMap[xL][yL].value));
         break;
 
       default:break;
     }
+    
+    siP->pixelMap[xL][yL](*inP);
   }
 
   return err;
@@ -231,12 +230,15 @@ static PF_Err SmartRender(PF_InData* in_data, PF_OutData* out_data,
 
       if (!err && output_worldP) {
         infoP->ref = in_data->effect_ref;
-        infoP->in_data = *in_data;
+        in_data->shutter_angle = 180;
+        in_data->shutter_phase = 0;
+        infoP->in_data.reset(in_data);
+        infoP->out_data.reset(out_data);
+        infoP->setupParams();
 
 
         ERR(iterSuite->iterate(in_data, 0, output_worldP->height, input_worldP,
-              &input_worldP->extent_hint, (void*)(infoP),ShiftImage8, output_worldP));
-
+              &input_worldP->extent_hint, (void*)(infoP),SortImagePixels, output_worldP));
 
         infoP->mapCreated = true;
         infoP->sortPixelMap();
@@ -244,7 +246,7 @@ static PF_Err SmartRender(PF_InData* in_data, PF_OutData* out_data,
 
         ERR(iterSuite->iterate(in_data, 0, output_worldP->height,
               input_worldP, &output_worldP->extent_hint,(void*)(infoP), 
-                ShiftImage8, output_worldP));
+                SortImagePixels, output_worldP));
 
 
         infoP->mapCreated = false;
@@ -253,7 +255,7 @@ static PF_Err SmartRender(PF_InData* in_data, PF_OutData* out_data,
   } else { err = PF_Err_BAD_CALLBACK_PARAM; }
 
 
-  suites.HandleSuite1()->host_unlock_handle(reinterpret_cast<PF_Handle>(
+  suites.HandleSuite1()->host_dispose_handle(reinterpret_cast<PF_Handle>(
     extra->input->pre_render_data));
 
   ERR(extra->cb->checkin_layer_pixels(in_data->effect_ref, SORT_INPUT));
@@ -289,49 +291,19 @@ static PF_Err PreRender(PF_InData* in_data,PF_OutData* out_data,
       extra->output->pre_render_data = infoH;
 
       for (int i = 0; i < SORT_NUM_PARAMS; ++i) {
-        PF_CHECKOUT_PARAM(in_data, i, in_data->current_time,
-                          in_data->time_step, in_data->time_scale, &infoP->params[i]);
+        PF_CHECKOUT_PARAM(in_data, i, in_data->current_time, in_data->time_step, 
+                          in_data->time_scale, &infoP->params[i]);
       }
 
       if (!err) {
 
         req.field = PF_Field_FRAME;
 
+        infoP->setIterWidth();
+                
         ERR(extra->cb->checkout_layer(in_data->effect_ref, SORT_INPUT, SORT_INPUT,
                                       &req, in_data->current_time, in_data->local_time_step,
                                       in_data->time_scale, &in_result));        
-
-        
-        PF_FloatMatrix matrix{0, -1, 0, 1, 0, 0, 0, 0, 0};
-
-        in_data->shutter_angle = 180;
-        in_data->shutter_phase = 0;
-        infoP->in_data = *in_data;
-        infoP->out_data = *out_data;
-        
-
-        PF_EffectWorld testWorld{ infoP->params[SORT_INPUT].u.ld };
-        PF_EffectWorld outputWorld{};
-        if (infoP->params[ORIENTAION_DROPDOWN].u.pd.value == HORIZONTAL_ORIENTATION) {
-          
-          suites.WorldTransformSuite1()->transform_world(in_data->effect_ref,
-                                                         PF_Quality_HI, NULL,
-                                                         PF_Field_FRAME, &testWorld,
-                                                         NULL, NULL, &matrix, 1, true, &in_result.result_rect, &testWorld);
-          
-          /*
-          in_data->utils->transform_world(in_data->effect_ref,
-                                          PF_Quality_HI, NULL,
-                                          PF_Field_FRAME, &testWorld,
-                                        NULL, NULL, &matrix, 1, true, &in_result.result_rect, &testWorld);
-         */          
-          
-          infoP->in_data.height = in_result.ref_height;
-          infoP->in_data.width = in_result.ref_width;
-        }
-        
-        
-        infoP->setupParams();
 
 
         if (!err) {

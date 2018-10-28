@@ -3,7 +3,9 @@
 
 
 
-SortSegment::SortSegment() {}
+SortSegment::SortSegment() {
+  
+}
 
 
 void SortSegment::getRGBInterpolatedVectors() {

@@ -21,7 +21,6 @@ class SorterBase : public PixelSorter {
 public:
 
   SorterBase();
-  ~SorterBase();
 
   PF_ProgPtr	   ref{};
   PF_SampPB  	   samp_pb{};
@@ -29,4 +28,5 @@ public:
   PF_Boolean     mapCreated{ 0 };
 
   void setupParams();
+  void setIterWidth();
 };

@@ -47,10 +47,10 @@ enum UserParameters { SORT_INPUT = 0, MAIN_GROUP_START, SORT_METHOD_DROPDOWN,
 };
 
 enum SortOrientations { VERTICAL_ORIENTATION = 1, HORIZONTAL_ORIENTATION };
-enum SortMethods { USER_MAIN_SORT = 1, USER_MANUAL_SORT, USER_RANGE_LOW };
+enum SortMethods { BASIC_SORT=1, MANUAL_SORT };
 enum SortByMenuOptions { SORT_BY_LUMINOSITY = 1, SORT_BY_RGB };
 enum SortByColorOptions { RED_SORT = 1, GREEN_SORT, BLUE_SORT };
-enum PixelProperties { HUE, LUMINANCE, SATURATION, LIGHTNESS };
+enum PixelProperties { HUE=1, LUMINANCE, SATURATION, LIGHTNESS };
 
 
 
@@ -64,7 +64,6 @@ public:
 
 
   PixelSorter();
-  
 
   random_device random{};
 
@@ -74,8 +73,8 @@ public:
   PF_Fixed   sortLength{};
   PF_Fixed   minLength{};
   PF_Fixed   lengthIsShortEnoughForFlip{};
-  PF_InData  in_data{};
-  PF_OutData out_data{};
+  unique_ptr<PF_InData> in_data{};
+  unique_ptr<PF_OutData> out_data{};
   PF_Fixed   pixelLines{};
   PF_Fixed   linePixels{};
   PF_Fixed   currentPixelValueDistance{};
@@ -92,7 +91,6 @@ public:
   void storeEndRowIters();
   void getSortLength();
   void getLineWidthPixelAverage();
-  void getLineWidthColorAverage();
   void sortPixelMap();
   void resetSortingVariables();
   void reverseSortIfTrue(PF_Boolean, PF_Fixed);

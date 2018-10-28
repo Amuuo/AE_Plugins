@@ -5,10 +5,6 @@
 
 SorterBase::SorterBase() {}
 
-SorterBase::~SorterBase() {
-  in_data.pica_basicP->ReleaseSuite(kPFColorCallbacksSuite, kPFColorCallbacksSuiteVersion1);
-}
-
 
 void SortSegment::reset() {
   highValue = PixelStruct{};
@@ -16,20 +12,28 @@ void SortSegment::reset() {
   segmentLength = 0;
   isEmpty = true;
   columnAvg = 0;
-  borderIters.clear();
 }
 
 
 
 void SorterBase::setupParams() {
 
-  pixelLines = in_data.width;
-  linePixels = in_data.height;
+  pixelLines = in_data-> width;
+  linePixels = in_data->height;
 
   pixelMap = vector<vector<PixelStruct>>(pixelLines, vector<PixelStruct>(linePixels, PixelStruct{}));
 
-  in_data.pica_basicP->AcquireSuite(kPFColorCallbacksSuite,
+  in_data->pica_basicP->AcquireSuite(kPFColorCallbacksSuite,
                                     kPFColorCallbacksSuiteVersion1,
                                     &colorSuite);
+  
+  
 
+}
+
+void SorterBase::setIterWidth() {
+  borderIters =
+    vector<pair<vector<PixelStruct>::iterator, vector<PixelStruct>::iterator>>(
+      params[SORT_WIDTH_SLIDER].u.fd.value, pair<vector<PixelStruct>::iterator,
+      vector<PixelStruct>::iterator>{});
 }
