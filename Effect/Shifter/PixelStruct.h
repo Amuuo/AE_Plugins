@@ -20,9 +20,10 @@ public:
 
   PixelStruct();
   PixelStruct(PF_Pixel);
+  ~PixelStruct() = default;
 
 
-  void operator()(PF_Pixel);
+  void set(PF_Pixel);
 
   PF_Pixel pixel{};
   A_long value{};

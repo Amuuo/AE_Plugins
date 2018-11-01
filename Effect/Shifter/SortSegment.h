@@ -10,6 +10,7 @@
 #include "Smart_Utils.h"
 #include "AEGP_SuiteHandler.h"
 #include "AEFX_SuiteHelper.h"
+
 #include <iostream>
 #include <vector>
 #include <random>
@@ -22,8 +23,8 @@
 #include <cmath>
 #include <array>
 #include <fstream>
-
 #include "PixelStruct.h"
+
 
 
 
@@ -39,14 +40,18 @@ public:
     vector<pair<vector<PixelStruct>::iterator, vector<PixelStruct>::iterator>>;
 
   SortSegment();
+  ~SortSegment() = default;
+  
 
 
-  PixelStruct  highValue{};
-  PixelStruct  lowValue{};
-  PF_FpLong    segmentLength{};
+  PixelStruct  highValue;
+  PixelStruct  lowValue;
+  PF_FpLong    segmentLength;
   PF_Boolean   isEmpty = true;
-  A_long       columnAvg{};
-  iteratorPair borderIters{};
+  A_long       columnAvg;
+  
+  iteratorPair borderIters{
+    pair<vector<PixelStruct>::iterator,vector<PixelStruct>::iterator>({},{})};
 
 
   virtual void getRGBInterpolatedVectors();

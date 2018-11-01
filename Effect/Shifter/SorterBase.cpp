@@ -1,9 +1,5 @@
-
-
 #include "SorterBase.h"
 
-
-SorterBase::SorterBase() {}
 
 
 void SortSegment::reset() {
@@ -16,22 +12,28 @@ void SortSegment::reset() {
 
 
 
-void SorterBase::setupParams() {
+void SorterBase::init(PF_InData * in)
+{
+  using iterPair = pair<vector<PixelStruct>::iterator, vector<PixelStruct>::iterator>;
+  using pixMatrix = vector<vector<PixelStruct>>;
 
-  pixelLines = in_data-> width;
-  linePixels = in_data->height;
+  in_data = in;
 
-  pixelMap = vector<vector<PixelStruct>>(pixelLines, vector<PixelStruct>(linePixels, PixelStruct{}));
+  pixelLines = in->width;
+  linePixels = in->height;
 
-  in_data->pica_basicP->AcquireSuite(kPFColorCallbacksSuite,
-                                    kPFColorCallbacksSuiteVersion1,
-                                    &colorSuite);
-  setIterWidth();
+  //pixelMap.clear();
+  pixelMap = pixMatrix(pixelLines,vector<PixelStruct>(linePixels, PixelStruct()));
+
+  borderIters.resize(params[SORT_WIDTH_SLIDER].u.fd.value);
+  
+  //borderIters = vector<iterPair>(static_cast<size_t>(
+  //  params[SORT_WIDTH_SLIDER].u.fd.value), iterPair{});
+  
+  
+
+  //in_data.pica_basicP->AcquireSuite(kPFColorCallbacksSuite,
+  //                                   kPFColorCallbacksSuiteVersion1, &colorSuite);    
 }
 
-void SorterBase::setIterWidth() {
-  borderIters =
-    vector<pair<vector<PixelStruct>::iterator, vector<PixelStruct>::iterator>>(
-      params[SORT_WIDTH_SLIDER].u.fd.value, pair<vector<PixelStruct>::iterator,
-      vector<PixelStruct>::iterator>{});
-}
+

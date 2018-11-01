@@ -22,14 +22,7 @@
 
 #pragma once
 
-#include "PixelSorter.h"
-#include "PixelStruct.h"
 #include "SorterBase.h"
-#include "SortSegment.h"
-#include "SortSegmentRed.h"
-#include "SortSegmentGreen.h"
-#include "SortSegmentBlue.h"
-
 #include "AEConfig.h"
 #include "entry.h"
 #include "AE_Effect.h"
@@ -49,6 +42,7 @@
 #include <functional>
 #include <map>
 #include <deque>
+#include <fstream>
 
 
 #ifdef AE_OS_WIN
@@ -65,11 +59,10 @@
 #define	BUILD_VERSION		1
 
 
-
-
-
-
+SPBasicSuite* _suite;
+const void* colorSuite;
 AEGP_PluginID pluginID;
+PF_ParamDef params[SORT_NUM_PARAMS]{};
 
 extern "C" {
 

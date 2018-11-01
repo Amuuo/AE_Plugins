@@ -22,8 +22,9 @@
 #include <cmath>
 #include <array>
 #include <fstream>
-#include"PixelStruct.h"
-#include"SortSegment.h"
+#include "SortSegment.h"
+
+
 
 
 #ifdef AE_OS_WIN
@@ -51,7 +52,7 @@ enum SortMethods { BASIC_SORT=1, MANUAL_SORT };
 enum SortByMenuOptions { SORT_BY_LUMINOSITY = 1, SORT_BY_RGB };
 enum SortByColorOptions { RED_SORT = 1, GREEN_SORT, BLUE_SORT };
 enum PixelProperties { HUE=1, LUMINANCE, SATURATION, LIGHTNESS };
-
+enum { SLIDER_ID, INPUT_ID};
 
 
 
@@ -62,29 +63,30 @@ class PixelSorter : public SortSegment {
 
 public:
 
+  using pixMap = vector<vector<PixelStruct>>;
 
   PixelSorter();
+  ~PixelSorter() = default;
 
   random_device random{};
 
-  PF_Fixed   minSortLengthRand{};
-  PF_Fixed   pixValueAverage{};
-  PF_Fixed   pixAvg{};
-  PF_Fixed   sortLength{};
-  PF_Fixed   minLength{};
-  PF_Fixed   lengthIsShortEnoughForFlip{};
-  unique_ptr<PF_InData> in_data{};
-  unique_ptr<PF_OutData> out_data{};
-  PF_Fixed   pixelLines{};
-  PF_Fixed   linePixels{};
-  PF_Fixed   currentPixelValueDistance{};
-  PF_Fixed   lineCounter{};
-  PF_Fixed   pixelCounter{};
-  PF_Fixed   currPixDistance{};
-  PF_Fixed   startingRGBValue{};
-  vector<vector<PixelStruct>> pixelMap{};
-  PF_ParamDef    params[SORT_NUM_PARAMS]{};
-  const void* colorSuite;
+  PF_Fixed   minSortLengthRand;
+  PF_Fixed   pixValueAverage;
+  PF_Fixed   pixAvg;
+  PF_Fixed   sortLength;
+  PF_Fixed   minLength;
+  PF_Fixed   lengthIsShortEnoughForFlip;
+  PF_Fixed   pixelLines;
+  PF_Fixed   linePixels;
+  PF_Fixed   currentPixelValueDistance;
+  PF_Fixed   lineCounter;
+  PF_Fixed   pixelCounter;
+  PF_Fixed   currPixDistance;
+  PF_Fixed   startingRGBValue;
+  PF_ParamDef params[SORT_NUM_PARAMS];
+  
+  PF_InData* in_data;
+  pixMap pixelMap;
 
 
   void storeBeginRowIters();

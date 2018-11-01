@@ -14,7 +14,7 @@ void PixelSorter::sortPixelMap() {
 
 
   for (lineCounter = 0; lineCounter < pixelLines;
-       lineCounter += params[SORT_WIDTH_SLIDER].u.fd.value) {
+       lineCounter += (PF_Fixed)borderIters.size()) {
 
     resetSortingVariables();
     storeBeginRowIters();
@@ -51,12 +51,12 @@ void PixelSorter::sortPixelMap() {
 void PixelSorter::storeBeginRowIters() {
 
   for (int j = lineCounter, i=0; 
-       j < (lineCounter + params[SORT_WIDTH_SLIDER].u.fd.value) &&
+       j < (lineCounter + borderIters.size()) &&
        (j < (pixelLines - 1)); ++j, ++i) {
     
     
-    borderIters[i].first = pixelMap[j].begin() + pixelCounter; 
-  
+    borderIters[i].first = pixelMap[j].begin() + pixelCounter;
+    
   }
 }
 
@@ -68,7 +68,7 @@ void PixelSorter::storeBeginRowIters() {
 void PixelSorter::storeEndRowIters() {
   
   for (int j = lineCounter, i=0;
-       j < (lineCounter + params[SORT_WIDTH_SLIDER].u.fd.value) &&
+       j < (lineCounter + borderIters.size()) &&
        (j < (pixelLines - 1)); ++j, ++i) {
     
     borderIters[i].second = pixelMap[j].begin() + pixelCounter;
@@ -107,7 +107,7 @@ void PixelSorter::getLineWidthPixelAverage() {
   columnAvg = 0;
 
   auto columnWidthSpan = lineCounter < pixelLines ? 
-    lineCounter + params[SORT_WIDTH_SLIDER].u.fd.value : 0;
+    lineCounter + borderIters.size() : 0;
 
 
   for (auto i = lineCounter; i < columnWidthSpan && i < pixelLines - 1; ++i) {
