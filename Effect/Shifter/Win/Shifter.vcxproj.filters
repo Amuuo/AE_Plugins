@@ -86,28 +86,16 @@
     <ClInclude Include="..\..\..\Util\AEFX_SuiteHelper.h">
       <Filter>Supporting Code</Filter>
     </ClInclude>
-    <ClInclude Include="..\Shifter.h">
+    <ClInclude Include="..\quicksortFunc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\SortSegmentBlue.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\SortSegmentGreen.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\SortSegmentRed.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\SortSegment.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\SorterBase.h">
+    <ClInclude Include="..\Advanced_Pixel_Sorter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\PixelStruct.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\PixelSorter.h">
+    <ClInclude Include="..\SortStruct.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -129,14 +117,9 @@
     <ClCompile Include="..\..\..\Util\Smart_Utils.cpp">
       <Filter>Supporting Code</Filter>
     </ClCompile>
-    <ClCompile Include="..\SortSegment.cpp" />
-    <ClCompile Include="..\SortSegmentBlue.cpp" />
-    <ClCompile Include="..\SortSegmentGreen.cpp" />
-    <ClCompile Include="..\SortSegmentRed.cpp" />
+    <ClCompile Include="..\Advanced_Pixel_Sorter.cpp" />
+    <ClCompile Include="..\quicksortFunc.cpp" />
     <ClCompile Include="..\PixelStruct.cpp" />
-    <ClCompile Include="..\Shifter.cpp" />
-    <ClCompile Include="..\SorterBase.cpp" />
-    <ClCompile Include="..\PixelSorter.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\ShifterPiPL.r">

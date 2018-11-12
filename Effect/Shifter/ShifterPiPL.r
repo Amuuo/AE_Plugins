@@ -1,9 +1,6 @@
 #include "AEConfig.h"
 #include "AE_EffectVers.h"
-
-#ifndef AE_OS_WIN
-	#include "AE_General.r"
-#endif
+#include "AE_General.r"
 
 resource 'PiPL' (16000) {
 	{	/* array properties: 12 elements */
@@ -19,19 +16,9 @@ resource 'PiPL' (16000) {
 		Category {
 			"Sample Plug-ins"
 		},
-#ifdef AE_OS_WIN
-	#ifdef AE_PROC_INTELx64
+
 		CodeWin64X86 {"EntryPointFunc"},
-	#else
-		CodeWin32X86 {"EntryPointFunc"},
-	#endif	
-#else
-	#ifdef AE_OS_MAC
-		CodeMachOPowerPC {"EntryPointFunc"},
-		CodeMacIntel32 {"EntryPointFunc"},
-		CodeMacIntel64 {"EntryPointFunc"},
-	#endif
-#endif
+		
 		/* [6] */
 		AE_PiPL_Version {
 			2,
@@ -59,7 +46,7 @@ resource 'PiPL' (16000) {
 		},
 		/* [11] */
 		AE_Effect_Match_Name {
-			"ADBE Shifter"
+			"ADBEShifter"
 		},
 		/* [12] */
 		AE_Reserved_Info {

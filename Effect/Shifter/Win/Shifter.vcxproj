@@ -22,6 +22,7 @@
     <ProjectGuid>{D90E076B-3A76-4F67-A492-D3A18AF538F1}</ProjectGuid>
     <RootNamespace>Shifter</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+    <ProjectName>Shifter</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -345,14 +346,10 @@
     <ClInclude Include="..\..\..\Headers\SPErrorCodes.h" />
     <ClInclude Include="..\..\..\Headers\SPTypes.h" />
     <ClInclude Include="..\..\..\Util\AEFX_SuiteHelper.h" />
-    <ClInclude Include="..\PixelSorter.h" />
+    <ClInclude Include="..\Advanced_Pixel_Sorter.h" />
     <ClInclude Include="..\PixelStruct.h" />
-    <ClInclude Include="..\Shifter.h" />
-    <ClInclude Include="..\SorterBase.h" />
-    <ClInclude Include="..\SortSegment.h" />
-    <ClInclude Include="..\SortSegmentBlue.h" />
-    <ClInclude Include="..\SortSegmentGreen.h" />
-    <ClInclude Include="..\SortSegmentRed.h" />
+    <ClInclude Include="..\quicksortFunc.h" />
+    <ClInclude Include="..\SortStruct.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="ShifterPiPL.rc" />
@@ -362,14 +359,9 @@
     <ClCompile Include="..\..\..\Util\AEGP_SuiteHandler.cpp" />
     <ClCompile Include="..\..\..\Util\MissingSuiteError.cpp" />
     <ClCompile Include="..\..\..\Util\Smart_Utils.cpp" />
-    <ClCompile Include="..\PixelSorter.cpp" />
+    <ClCompile Include="..\Advanced_Pixel_Sorter.cpp" />
     <ClCompile Include="..\PixelStruct.cpp" />
-    <ClCompile Include="..\Shifter.cpp" />
-    <ClCompile Include="..\SorterBase.cpp" />
-    <ClCompile Include="..\SortSegment.cpp" />
-    <ClCompile Include="..\SortSegmentBlue.cpp" />
-    <ClCompile Include="..\SortSegmentGreen.cpp" />
-    <ClCompile Include="..\SortSegmentRed.cpp" />
+    <ClCompile Include="..\quicksortFunc.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\ShifterPiPL.r" />

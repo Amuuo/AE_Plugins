@@ -11,7 +11,7 @@ resource 'PiPL' (16000) {
 		},
 		/* [2] */
 		Name {
-			"Projector"
+			"Projector2"
 		},
 		/* [3] */
 		Category {
