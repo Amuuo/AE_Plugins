@@ -12,7 +12,7 @@ void swap(T* s1, T* s2) {
 
 
 template<class T>
-void insertionSort(PF_Fixed sizeOfArray, T* toSort) {
+void insertionSort(PF_Fixed sizeOfArray, std::vector<T>*& toSort) {
 
 
 
@@ -31,7 +31,7 @@ void insertionSort(PF_Fixed sizeOfArray, T* toSort) {
 
 
 template<class T>
-void quickSort(PF_Fixed sizeOfArray, T* toSort) {
+void quickSort(PF_Fixed sizeOfArray, std::vector<T>*& toSort) {
 
 
   if (sizeOfArray < 100) {

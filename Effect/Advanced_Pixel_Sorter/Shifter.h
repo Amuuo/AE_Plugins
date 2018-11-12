@@ -53,7 +53,7 @@
 	#include <Windows.h>
 #endif
 
-#define	NAME "Advanced_Pixel_Sorter"
+#define	NAME "Shifter"
 #define DESCRIPTION	"Blend in a shifted copy of the image.\nCopyright 1994-2007 Adobe Systems Incorporated."
 
 #define	MAJOR_VERSION		2

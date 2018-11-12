@@ -51,7 +51,7 @@ static PF_Err GlobalSetup(PF_InData *in_data, PF_OutData *out_data,
   AEGP_SuiteHandler suites(in_data->pica_basicP);
    
   
-  suites.UtilitySuite6()->AEGP_RegisterWithAEGP(NULL, "Advanced_Pixel_Sorter", &pluginID);
+  suites.UtilitySuite6()->AEGP_RegisterWithAEGP(NULL, "Shifter", &pluginID);
 
   out_data->my_version = PF_VERSION(MAJOR_VERSION, MINOR_VERSION,
                                     BUG_VERSION, STAGE_VERSION, BUILD_VERSION);
@@ -148,25 +148,25 @@ static PF_Err SortImagePixels(void *refcon, A_long xL, A_long yL,
 
 
   if (siP->mapCreated) { 
-    *outP = siP->pixArray[xL*yL].pixel; 
+    *outP = siP->pixArray[xL][yL]->pixel; 
   }
   
   else {
     switch (LIGHTNESS) {
 
       case HUE: siP->in_data->utils->colorCB.Hue(
-          siP->in_data->effect_ref, inP, &(siP->pixArray[xL*yL].value)); break;
+          siP->in_data->effect_ref, inP, &(siP->pixArray[xL][yL].value)); break;
 
       case SATURATION: siP->in_data->utils->colorCB.Saturation(
-          siP->in_data->effect_ref, inP, &(siP->pixArray[xL*yL].value)); break;
+          siP->in_data->effect_ref, inP, &(siP->pixArray[xL][yL].value)); break;
 
       case LIGHTNESS: siP->in_data->utils->colorCB.Lightness(
-          siP->in_data->effect_ref, inP, &(siP->pixArray[xL*yL].value)); break;
+          siP->in_data->effect_ref, inP, &(siP->pixArray[xL][yL].value)); break;
 
       case LUMINANCE: siP->in_data->utils->colorCB.Luminance(
-          siP->in_data->effect_ref, inP, &(siP->pixArray[xL*yL].value)); break;
+          siP->in_data->effect_ref, inP, &(siP->pixArray[xL][yL].value)); break;
     }
-    siP->pixArray[xL*yL].set(*inP);
+    siP->pixArray[xL][yL].set(*inP);
   }
 
   return err;
@@ -213,26 +213,21 @@ static PF_Err SmartRender(PF_InData* in_data, PF_OutData* out_data, PF_SmartRend
   PF_EffectWorld*    sorterWorldP = NULL;
 
 
-  ERR((extra->cb->checkout_layer_pixels(in_data->effect_ref,
-      SORT_INPUT, &input_worldP)));
 
-  ERR(extra->cb->checkout_output(in_data->effect_ref, &output_worldP));
 
-  PF_COPY(input_worldP, sorterWorldP, NULL, NULL);
-
-  SortStructPtr sortStruct = static_cast<SortStructPtr>(suites.HandleSuite1()->
+  SortStructPtr sortStruct = static_cast<SortStruct*>(suites.HandleSuite1()->
     host_lock_handle(static_cast<PF_Handle>(extra->input->pre_render_data)));
 
+  sortStruct->in_data = in_data; 
 
-  sortStruct->in_data = in_data;
-  //
-  static const PF_Fixed pixelSize = sizeof(PF_Pixel);
-  
-  
-  //sortStruct->pixArray = new     
 
-  if(sortStruct) {
+  if(sortStruct->no_opB) {
 
+    ERR((extra->cb->checkout_layer_pixels(in_data->effect_ref,
+        SORT_INPUT, &input_worldP)));
+
+    ERR(extra->cb->checkout_output(in_data->effect_ref, &output_worldP));
+    
     //sortStruct->pixArray = new PixelStruct[sizeof(sorterWorldP->data) / pixelSize];
 
     if(!err && output_worldP) {
@@ -243,15 +238,14 @@ static PF_Err SmartRender(PF_InData* in_data, PF_OutData* out_data, PF_SmartRend
           (void*)(sortStruct), SortImagePixels, output_worldP));
 
 
-      
-      quickSort<PixelStruct>(in_data->height*in_data->width, sortStruct->pixArray);
+      for (auto& p : *sortStruct->pixArray) {
+        quickSort<PixelStruct>(p->size(), p);
+      }
       sortStruct->mapCreated = true;
 
       ERR(suites.Iterate8Suite1()->iterate(in_data, 0, output_worldP->height,
           input_worldP, &output_worldP->extent_hint, (void*)(sortStruct),
           SortImagePixels, output_worldP));
-
-
 
       suites.HandleSuite1()->host_unlock_handle(
         static_cast<PF_Handle>(extra->input->pre_render_data));
@@ -262,11 +256,8 @@ static PF_Err SmartRender(PF_InData* in_data, PF_OutData* out_data, PF_SmartRend
     }
   }  
 
-
   extra->cb->checkin_layer_pixels(in_data->effect_ref, SORT_INPUT);
-  delete[] sortStruct->pixArray;
-  
- 
+
 
   return err;
 }
@@ -290,22 +281,32 @@ static PF_Err PreRender(PF_InData* in_data,PF_OutData* out_data, PF_PreRenderExt
   const PF_Fixed inDataSize    = sizeof(PF_InData);
 
 
+  /*
   PF_Fixed sizeOfPixArray = (in_data->height * in_data->width * 
                              pixStructSize) + inDataSize + boolSize;
-  
-  infoH = suites.HandleSuite1()->host_new_handle(sizeof(sizeOfPixArray));    
+  */
+
+  infoH = suites.HandleSuite1()->host_new_handle(sizeof(SortStruct));    
   
       
   if (infoH) {
     
+    SortStructPtr sortStruct =
+      static_cast<SortStructPtr>(suites.HandleSuite1()->host_lock_handle(infoH));
+
+    sortStruct->pixArray = new std::vector<std::vector<PixelStruct>*>;
+    sortStruct->pixArray->reserve(in_data->width);
+    for (auto& p : *sortStruct->pixArray) {
+      p = new std::vector<PixelStruct>;
+      p->reserve(in_data->height);
+    }
     //AEFX_CLR_STRUCT(*infoP);
     extra->output->pre_render_data = infoH;
     //if (infoP) {          
 
     if (!err) {                  
 
-      SortStructPtr sortStruct = 
-        static_cast<SortStructPtr>(suites.HandleSuite1()->host_lock_handle(infoH));
+      
       
 
       ref.field = PF_Field_FRAME;
@@ -315,7 +316,7 @@ static PF_Err PreRender(PF_InData* in_data,PF_OutData* out_data, PF_PreRenderExt
           in_data->time_scale, &in_result));
       
       
-      sortStruct->pixArray = new PixelStruct[(PF_Fixed)(in_data->height*in_data->width)];
+      //sortStruct->pixArray = new PixelStruct[(PF_Fixed)(in_data->height*in_data->width)];
 
       if (!err) {
         UnionLRect(&in_result.result_rect, &extra->output->result_rect);

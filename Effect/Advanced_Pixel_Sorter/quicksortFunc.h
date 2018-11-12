@@ -20,7 +20,7 @@
 void swap(PF_Fixed*, PF_Fixed*);
 
 template<class T>
-void insertionSort(PF_Fixed, T*);
+void insertionSort(PF_Fixed, std::vector<T>*&);
 
 template<class T>
-void quickSort(PF_Fixed, T*);
+void quickSort(PF_Fixed, std::vector<T>*&);

@@ -10,14 +10,19 @@
 #include "AEGP_SuiteHandler.h"
 #include "AEFX_SuiteHelper.h"
 #include "PixelStruct.h"
+#include <vector>
 
 
 class SortStruct
 {
 public:
   SortStruct() {}
-  PF_InData* in_data;
-  PixelStruct* pixArray{nullptr};
-  PF_Boolean mapCreated = false;
+  PF_ProgPtr	 ref;
+  PF_SampPB    samp_pb{};
+  PF_Boolean	 no_opB{};
+  PF_InData*   in_data;
+  std::vector<std::vector<PixelStruct>*>* pixArray;
+  //PixelStruct  pixArray**;
+  PF_Boolean   mapCreated = false;
 };
 
