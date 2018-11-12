@@ -76,8 +76,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GLator", "Effect\GLator\Win
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Advanced_Pixel_Sorter", "Effect\Advanced Pixel Sorter\Win\Advanced_Pixel_Sorter.vcxproj", "{F6ACEC22-7758-42D7-ADB3-EC8ECE62EF25}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Advanced_Pixel_Sorter", "Effect\Advanced_Pixel_Sorter\Win\Advanced_Pixel_Sorter.vcxproj", "{C0D5ECD2-3ADC-405B-87E1-7029CD37B4CA}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Shifter", "Effect\Shifter\Win\Shifter.vcxproj", "{D90E076B-3A76-4F67-A492-D3A18AF538F1}"
 EndProject
 Global
@@ -314,14 +312,6 @@ Global
 		{F6ACEC22-7758-42D7-ADB3-EC8ECE62EF25}.Release|x64.Build.0 = Release|x64
 		{F6ACEC22-7758-42D7-ADB3-EC8ECE62EF25}.Release|x86.ActiveCfg = Release|Win32
 		{F6ACEC22-7758-42D7-ADB3-EC8ECE62EF25}.Release|x86.Build.0 = Release|Win32
-		{C0D5ECD2-3ADC-405B-87E1-7029CD37B4CA}.Debug|x64.ActiveCfg = Debug|x64
-		{C0D5ECD2-3ADC-405B-87E1-7029CD37B4CA}.Debug|x64.Build.0 = Debug|x64
-		{C0D5ECD2-3ADC-405B-87E1-7029CD37B4CA}.Debug|x86.ActiveCfg = Debug|Win32
-		{C0D5ECD2-3ADC-405B-87E1-7029CD37B4CA}.Debug|x86.Build.0 = Debug|Win32
-		{C0D5ECD2-3ADC-405B-87E1-7029CD37B4CA}.Release|x64.ActiveCfg = Release|x64
-		{C0D5ECD2-3ADC-405B-87E1-7029CD37B4CA}.Release|x64.Build.0 = Release|x64
-		{C0D5ECD2-3ADC-405B-87E1-7029CD37B4CA}.Release|x86.ActiveCfg = Release|Win32
-		{C0D5ECD2-3ADC-405B-87E1-7029CD37B4CA}.Release|x86.Build.0 = Release|Win32
 		{D90E076B-3A76-4F67-A492-D3A18AF538F1}.Debug|x64.ActiveCfg = Debug|x64
 		{D90E076B-3A76-4F67-A492-D3A18AF538F1}.Debug|x64.Build.0 = Debug|x64
 		{D90E076B-3A76-4F67-A492-D3A18AF538F1}.Debug|x86.ActiveCfg = Debug|Win32

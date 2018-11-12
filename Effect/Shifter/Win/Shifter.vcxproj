@@ -346,10 +346,10 @@
     <ClInclude Include="..\..\..\Headers\SPErrorCodes.h" />
     <ClInclude Include="..\..\..\Headers\SPTypes.h" />
     <ClInclude Include="..\..\..\Util\AEFX_SuiteHelper.h" />
-    <ClInclude Include="..\Advanced_Pixel_Sorter.h" />
-    <ClInclude Include="..\PixelStruct.h" />
-    <ClInclude Include="..\quicksortFunc.h" />
-    <ClInclude Include="..\SortStruct.h" />
+    <ClInclude Include="..\..\Advanced_Pixel_Sorter\Shifter.h" />
+    <ClInclude Include="..\..\Advanced_Pixel_Sorter\PixelStruct.h" />
+    <ClInclude Include="..\..\Advanced_Pixel_Sorter\quicksortFunc.h" />
+    <ClInclude Include="..\..\Advanced_Pixel_Sorter\SortStruct.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="ShifterPiPL.rc" />
@@ -359,11 +359,12 @@
     <ClCompile Include="..\..\..\Util\AEGP_SuiteHandler.cpp" />
     <ClCompile Include="..\..\..\Util\MissingSuiteError.cpp" />
     <ClCompile Include="..\..\..\Util\Smart_Utils.cpp" />
-    <ClCompile Include="..\Advanced_Pixel_Sorter.cpp" />
-    <ClCompile Include="..\PixelStruct.cpp" />
-    <ClCompile Include="..\quicksortFunc.cpp" />
+    <ClCompile Include="..\..\Advanced_Pixel_Sorter\Shifter.cpp" />
+    <ClCompile Include="..\..\Advanced_Pixel_Sorter\PixelStruct.cpp" />
+    <ClCompile Include="..\..\Advanced_Pixel_Sorter\quicksortFunc.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\..\Advanced_Pixel_Sorter\Shifter.r" />
     <None Include="..\ShifterPiPL.r" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

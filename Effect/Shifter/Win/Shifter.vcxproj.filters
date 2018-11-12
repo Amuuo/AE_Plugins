@@ -86,16 +86,16 @@
     <ClInclude Include="..\..\..\Util\AEFX_SuiteHelper.h">
       <Filter>Supporting Code</Filter>
     </ClInclude>
-    <ClInclude Include="..\quicksortFunc.h">
+    <ClInclude Include="..\..\Advanced_Pixel_Sorter\PixelStruct.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\Advanced_Pixel_Sorter.h">
+    <ClInclude Include="..\..\Advanced_Pixel_Sorter\quicksortFunc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\PixelStruct.h">
+    <ClInclude Include="..\..\Advanced_Pixel_Sorter\SortStruct.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\SortStruct.h">
+    <ClInclude Include="..\..\Advanced_Pixel_Sorter\Shifter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -117,13 +117,14 @@
     <ClCompile Include="..\..\..\Util\Smart_Utils.cpp">
       <Filter>Supporting Code</Filter>
     </ClCompile>
-    <ClCompile Include="..\Advanced_Pixel_Sorter.cpp" />
-    <ClCompile Include="..\quicksortFunc.cpp" />
-    <ClCompile Include="..\PixelStruct.cpp" />
+    <ClCompile Include="..\..\Advanced_Pixel_Sorter\PixelStruct.cpp" />
+    <ClCompile Include="..\..\Advanced_Pixel_Sorter\quicksortFunc.cpp" />
+    <ClCompile Include="..\..\Advanced_Pixel_Sorter\Shifter.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\ShifterPiPL.r">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="..\..\Advanced_Pixel_Sorter\Shifter.r" />
   </ItemGroup>
 </Project>

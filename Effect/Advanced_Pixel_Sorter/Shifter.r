@@ -10,7 +10,7 @@ resource 'PiPL' (16000) {
 		},
 		/* [2] */
 		Name {
-			"Advanced_Pixel_Sorter"
+			"Shifter"
 		},
 		/* [3] */
 		Category {
@@ -46,7 +46,7 @@ resource 'PiPL' (16000) {
 		},
 		/* [11] */
 		AE_Effect_Match_Name {
-			"ADBE Advanced_Pixel_Sorter"
+			"ADBE Shifter"
 		},
 		/* [12] */
 		AE_Reserved_Info {

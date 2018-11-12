@@ -23,7 +23,7 @@
   Main.cpp
 */
 
-#include "Advanced_Pixel_Sorter.h"
+#include "Shifter.h"
 #include "quicksortFunc.cpp"
 
 
